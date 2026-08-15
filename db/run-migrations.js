@@ -24,16 +24,63 @@ const ALREADY_APPLIED = new Set(['ER_DUP_KEYNAME', 'ER_DUP_FIELDNAME']);
 
 /**
  * Split a SQL file into executable statements.
- * Line comments are stripped first so a semicolon inside a comment cannot split a statement.
+ *
+ * Splitting naively on ';' is wrong: our seed data legitimately contains semicolons inside
+ * string literals (for example an accessibility note reading "Deaf; communicates in Malaysian
+ * Sign Language"), and cutting there produces a truncated, unparseable statement. So this
+ * tracks whether the cursor is inside a quoted string and only treats a semicolon as a
+ * terminator when it is not.
+ *
+ * Handles single and double quoted strings, backslash escapes, and the SQL convention of
+ * doubling a quote to embed it ('it''s').
  */
 function splitStatements(sql) {
-  return sql
+  const withoutLineComments = sql
     .split('\n')
     .filter((line) => !line.trim().startsWith('--'))
-    .join('\n')
-    .split(';')
-    .map((statement) => statement.trim())
-    .filter(Boolean);
+    .join('\n');
+
+  const statements = [];
+  let current = '';
+  let quote = null; // the quote character we are currently inside, or null
+
+  for (let i = 0; i < withoutLineComments.length; i += 1) {
+    const char = withoutLineComments[i];
+
+    if (quote) {
+      current += char;
+      if (char === '\\') {
+        // Escape sequence: consume the next character verbatim.
+        current += withoutLineComments[i + 1] ?? '';
+        i += 1;
+      } else if (char === quote) {
+        if (withoutLineComments[i + 1] === quote) {
+          current += quote; // a doubled quote is a literal quote, not a terminator
+          i += 1;
+        } else {
+          quote = null;
+        }
+      }
+      continue;
+    }
+
+    if (char === "'" || char === '"') {
+      quote = char;
+      current += char;
+      continue;
+    }
+
+    if (char === ';') {
+      statements.push(current);
+      current = '';
+      continue;
+    }
+
+    current += char;
+  }
+
+  statements.push(current);
+  return statements.map((statement) => statement.trim()).filter(Boolean);
 }
 
 async function runFile(connection, file) {
@@ -84,12 +131,18 @@ async function main() {
   }
 }
 
-main()
-  .then(() => {
-    console.log('[migrate] complete');
-    process.exit(0);
-  })
-  .catch((error) => {
-    console.error('[migrate] FAILED:', error.message);
-    process.exit(1);
-  });
+// Only run when invoked directly, so tests can import splitStatements without connecting
+// to a database.
+if (require.main === module) {
+  main()
+    .then(() => {
+      console.log('[migrate] complete');
+      process.exit(0);
+    })
+    .catch((error) => {
+      console.error('[migrate] FAILED:', error.message);
+      process.exit(1);
+    });
+}
+
+module.exports = { splitStatements };

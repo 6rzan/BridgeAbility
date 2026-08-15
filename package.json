@@ -11,8 +11,8 @@
   "scripts": {
     "start": "node src/server.js",
     "migrate": "node db/run-migrations.js",
-    "test": "node --test tests/unit/",
-    "test:integration": "node --test tests/integration/",
+    "test": "node --test \"tests/unit/**/*.test.js\"",
+    "test:integration": "node --test \"tests/integration/**/*.test.js\"",
     "secret-scan": "bash scripts/secret-scan.sh",
     "package": "node scripts/package-submission.js"
   },
