@@ -30,3 +30,8 @@ Thumbs.db
 # Excluded so the tracked history stays focused on the application being assessed.
 .claude/
 .specify/
+
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml
