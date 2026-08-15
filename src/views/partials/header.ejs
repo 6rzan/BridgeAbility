@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= title %> — BridgeAbility</title>
+  <meta name="description" content="Find and book verified accessibility services — interpreters, accessible transport, caregivers and mobility assistance.">
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="icon" href="data:,">
+</head>
+<body>
+  <%- include('icons') %>
+
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <%#
+    Accessibility controls. They work without JavaScript in the sense that the page is
+    already readable and operable; the toggles simply add two extra affordances when
+    scripting is available, and are hidden when it is not.
+  -%>
+  <div class="a11y-bar" hidden data-a11y-bar>
+    <div class="container cluster">
+      <span class="a11y-bar__label" id="a11y-label">Display</span>
+      <button type="button" data-contrast-toggle aria-pressed="false">High contrast</button>
+      <span role="group" aria-labelledby="a11y-label" class="cluster">
+        <button type="button" data-text-size="down" aria-label="Decrease text size">A&minus;</button>
+        <button type="button" data-text-size="reset">Reset text size</button>
+        <button type="button" data-text-size="up" aria-label="Increase text size">A+</button>
+      </span>
+    </div>
+  </div>
+
+  <header class="site-header">
+    <div class="container site-header__bar">
+      <a class="brand" href="/">
+        <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-bridge"></use></svg>
+        BridgeAbility
+      </a>
+
+      <nav class="site-nav" aria-label="Main">
+        <ul>
+          <li><a href="/services"<%= currentPath === '/services' ? ' aria-current="page"' : '' %>>Find services</a></li>
+          <% if (user) { %>
+            <li><a href="/dashboard"<%= currentPath === '/dashboard' ? ' aria-current="page"' : '' %>>Dashboard</a></li>
+            <li>
+              <form method="post" action="/logout" class="cluster">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button type="submit" class="btn btn--secondary">Sign out</button>
+              </form>
+            </li>
+          <% } else { %>
+            <li><a href="/login"<%= currentPath === '/login' ? ' aria-current="page"' : '' %>>Sign in</a></li>
+            <li><a href="/register"<%= currentPath === '/register' ? ' aria-current="page"' : '' %>>Create account</a></li>
+          <% } %>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <%# Success and error feedback is announced to assistive technology as it appears. -%>
+  <div class="container" aria-live="polite" data-flash-region>
+    <% if (typeof flash !== 'undefined' && flash) { %>
+      <div class="alert alert--<%= flash.type %>" role="<%= flash.type === 'error' ? 'alert' : 'status' %>">
+        <svg class="icon" aria-hidden="true" focusable="false">
+          <use href="#icon-<%= flash.type === 'error' ? 'error' : flash.type === 'warning' ? 'alert' : 'check' %>"></use>
+        </svg>
+        <p class="alert__body"><%= flash.message %></p>
+      </div>
+    <% } %>
+  </div>
+
+  <main id="main" tabindex="-1">
+    <div class="container">

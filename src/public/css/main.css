@@ -1,0 +1,436 @@
+/* ==========================================================================
+   BridgeAbility design system
+   --------------------------------------------------------------------------
+   Trust-first public-service product UI. Every colour below is measured, not
+   guessed: `node scripts/check-contrast.js` asserts all 17 foreground/background
+   pairs against WCAG 2.2 (4.5:1 text, 3:1 non-text) and fails if any regresses.
+
+   Typeface: a humanist system stack. No CDN is permitted by our Content Security
+   Policy, and system faces honour the OS font-size and font-smoothing settings a
+   reader has already chosen -- which matters more on a product whose users
+   include people with low vision than a bespoke display face would.
+   ========================================================================== */
+
+:root {
+  /* Colour -- measured in scripts/check-contrast.js */
+  --ink: #12212b;           /* 16.43:1 on page */
+  --muted: #4c5c68;         /*  6.91:1 on page */
+  --primary: #0b5d6b;       /*  7.52:1 on page */
+  --primary-hover: #084651; /* 10.47:1 with white */
+  --danger: #a0201c;        /*  7.73:1 on page */
+  --success: #1b5e20;       /*  7.87:1 on page */
+  --warning: #8a4b08;       /*  6.79:1 on page */
+  --page: #ffffff;
+  --surface: #f4f7f8;
+  --border: #7a8e99;        /*  3.41:1 on page -- meets SC 1.4.11 */
+
+  /* Spacing -- 4px base */
+  --s1: 0.25rem; --s2: 0.5rem;  --s3: 0.75rem; --s4: 1rem;
+  --s5: 1.5rem;  --s6: 2rem;    --s7: 3rem;    --s8: 4rem;
+
+  /* Type -- user-scalable via the text-size control, which sets --type-scale */
+  --type-scale: 1;
+  --text-sm: calc(0.875rem * var(--type-scale));
+  --text-base: calc(1rem * var(--type-scale));
+  --text-lg: calc(1.125rem * var(--type-scale));
+  --text-xl: calc(1.375rem * var(--type-scale));
+  --text-2xl: calc(1.75rem * var(--type-scale));
+  --text-3xl: calc(2.25rem * var(--type-scale));
+
+  --radius: 6px;
+  /* Depth carries an offset and a soft blur -- never a zero-offset halo. */
+  --shadow: 0 1px 2px rgba(18, 33, 43, 0.08), 0 4px 12px rgba(18, 33, 43, 0.06);
+
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --measure: 68ch; /* body measure inside the 65-75ch band */
+}
+
+/* High-contrast mode -- a user preference, not a media query, so it is togglable
+   independently of the operating system setting. */
+:root[data-contrast="high"] {
+  --ink: #000000;
+  --muted: #1a1a1a;
+  --primary: #00333d;
+  --primary-hover: #000000;
+  --danger: #7a0000;
+  --success: #003d0f;
+  --warning: #5c3100;
+  --page: #ffffff;
+  --surface: #ffffff;
+  --border: #000000;
+  --shadow: none;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  font-size: var(--text-base);
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--page);
+  /* Nothing may spill horizontally, down to a 320px viewport. */
+  overflow-wrap: break-word;
+}
+
+/* --- Motion -------------------------------------------------------------- */
+/* Motion is deliberately near-zero: transitions are functional feedback only.
+   Users who ask for less get none. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* --- Focus (WCAG 2.2 SC 2.4.7, 2.4.11, 1.4.11) ---------------------------- */
+/* A dual ring: the white inner band separates the indicator from a coloured
+   control (7.52:1 on primary), the ink outer band carries contrast against the
+   page (16.43:1). Both measured in scripts/check-contrast.js. */
+:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px var(--page);
+  border-radius: 2px;
+}
+:focus:not(:focus-visible) { outline: none; }
+
+/* SC 2.4.11 -- nothing may sit on top of the element that has focus. */
+:target,
+a:focus-visible, button:focus-visible,
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  scroll-margin-top: var(--s8);
+}
+
+/* --- Skip link ------------------------------------------------------------ */
+.skip-link {
+  position: absolute;
+  left: var(--s4);
+  top: calc(-1 * var(--s8));
+  z-index: 100;
+  padding: var(--s3) var(--s4);
+  background: var(--ink);
+  color: var(--page);
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+  transition: top 120ms ease-out;
+}
+.skip-link:focus { top: 0; }
+
+/* --- Layout --------------------------------------------------------------- */
+.container {
+  width: 100%;
+  max-width: 72rem;
+  margin-inline: auto;
+  padding-inline: var(--s4);
+}
+
+main { display: block; padding-block: var(--s6) var(--s8); }
+.prose { max-width: var(--measure); }
+
+/* --- Typography ----------------------------------------------------------- */
+/* Headings take more space above than below, so a heading reads as belonging to
+   the content that follows rather than floating between two blocks. */
+h1, h2, h3, h4 {
+  margin: 0 0 var(--s3);
+  line-height: 1.25;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+h1 { font-size: var(--text-3xl); }
+h2 { font-size: var(--text-2xl); margin-top: var(--s7); }
+h3 { font-size: var(--text-xl);  margin-top: var(--s6); }
+h4 { font-size: var(--text-lg);  margin-top: var(--s5); }
+:is(h1, h2, h3, h4):first-child { margin-top: 0; }
+
+p { margin: 0 0 var(--s4); max-width: var(--measure); }
+.lead { font-size: var(--text-lg); color: var(--muted); }
+.muted { color: var(--muted); }
+.text-sm { font-size: var(--text-sm); }
+
+a { color: var(--primary); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:hover { color: var(--primary-hover); }
+
+/* --- Header and navigation ------------------------------------------------ */
+.site-header {
+  border-bottom: 1px solid var(--border);
+  background: var(--page);
+}
+.site-header__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s3);
+  padding-block: var(--s3);
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--ink);
+  text-decoration: none;
+  letter-spacing: -0.02em;
+}
+.brand:hover { color: var(--primary); }
+
+.site-nav { margin-left: auto; }
+.site-nav ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+/* Every interactive target clears 24x24 CSS px (SC 2.5.8). Real controls get
+   44px of height, which is the comfortable floor rather than the legal one. */
+.site-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: var(--s2) var(--s3);
+  border-radius: var(--radius);
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 500;
+}
+.site-nav a:hover { background: var(--surface); color: var(--primary); }
+.site-nav a[aria-current="page"] {
+  color: var(--primary);
+  box-shadow: inset 0 -2px 0 var(--primary);
+}
+
+/* --- Buttons -------------------------------------------------------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s2);
+  min-height: 44px;
+  min-width: 44px;
+  padding: var(--s2) var(--s5);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  font: inherit;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 120ms ease-out, border-color 120ms ease-out;
+}
+.btn--primary { background: var(--primary); color: #ffffff; }
+.btn--primary:hover { background: var(--primary-hover); color: #ffffff; }
+.btn--secondary { background: var(--page); color: var(--ink); border-color: var(--border); }
+.btn--secondary:hover { background: var(--surface); }
+.btn--danger { background: var(--danger); color: #ffffff; }
+.btn--danger:hover { background: #7d1815; color: #ffffff; }
+.btn[disabled], .btn[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* --- Forms ---------------------------------------------------------------- */
+.field { margin-bottom: var(--s5); max-width: 34rem; }
+.field label { display: block; margin-bottom: var(--s2); font-weight: 600; }
+.field__hint { display: block; margin-bottom: var(--s2); color: var(--muted); font-size: var(--text-sm); }
+
+.input, .select, .textarea {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--page);
+  color: var(--ink);
+  font: inherit;
+}
+.textarea { min-height: 8rem; resize: vertical; }
+
+/* Errors are stated in text and bound with aria-describedby. Colour reinforces
+   the message; it is never the only signal carrying it. */
+.field__error {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s2);
+  margin-top: var(--s2);
+  color: var(--danger);
+  font-weight: 600;
+}
+.field__error .icon { flex: none; margin-top: 0.2em; }
+.input[aria-invalid="true"], .select[aria-invalid="true"], .textarea[aria-invalid="true"] {
+  border-color: var(--danger);
+  border-width: 2px;
+}
+
+fieldset { margin: 0 0 var(--s5); padding: 0; border: 0; }
+legend { padding: 0; margin-bottom: var(--s2); font-weight: 600; }
+
+/* --- Alerts --------------------------------------------------------------- */
+/* A 1px border and a tinted ground, with an authored icon carrying the meaning.
+   Deliberately not a thick coloured left rule: that pattern conveys nothing to a
+   screen reader and reads as decoration. */
+.alert {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s3);
+  padding: var(--s3) var(--s4);
+  margin-bottom: var(--s5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.alert .icon { flex: none; margin-top: 0.2em; }
+.alert__body { margin: 0; max-width: none; }
+.alert--success { border-color: var(--success); color: var(--success); }
+.alert--error   { border-color: var(--danger);  color: var(--danger); }
+.alert--warning { border-color: var(--warning); color: var(--warning); }
+.alert strong { color: inherit; }
+
+/* --- Panels --------------------------------------------------------------- */
+/* Panels group related content. They are never nested, and never used as a
+   uniform icon/heading/text grid standing in for page structure. */
+.panel {
+  padding: var(--s5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--page);
+  box-shadow: var(--shadow);
+}
+.panel + .panel { margin-top: var(--s4); }
+.panel__title { margin: 0 0 var(--s2); font-size: var(--text-lg); }
+
+/* --- Status pills --------------------------------------------------------- */
+/* The status word carries the meaning; the tint is secondary. */
+.status {
+  display: inline-block;
+  padding: var(--s1) var(--s3);
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: var(--text-sm);
+  font-weight: 650;
+  white-space: nowrap;
+}
+.status--pending   { color: var(--warning); }
+.status--accepted  { color: var(--success); }
+.status--assigned  { color: var(--primary); }
+.status--completed { color: var(--success); }
+.status--rejected,
+.status--cancelled { color: var(--danger); }
+
+/* --- Tables --------------------------------------------------------------- */
+/* Below 768px each row becomes a stacked block using the header labels carried
+   in data-label, so a table reflows instead of overflowing. */
+.table-wrap { margin-bottom: var(--s5); }
+table { width: 100%; border-collapse: collapse; }
+caption { text-align: left; padding-bottom: var(--s3); color: var(--muted); }
+th, td { padding: var(--s3); text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { font-weight: 650; }
+
+@media (max-width: 47.99em) {
+  .table--reflow thead {
+    position: absolute; width: 1px; height: 1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+  }
+  .table--reflow tr {
+    display: block;
+    margin-bottom: var(--s4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: var(--s2);
+  }
+  .table--reflow td { display: flex; gap: var(--s3); border: 0; padding: var(--s2); }
+  .table--reflow td::before {
+    content: attr(data-label);
+    flex: 0 0 40%;
+    font-weight: 650;
+  }
+  .table--reflow td:not(:last-child) { border-bottom: 1px solid var(--surface); }
+}
+
+/* --- Icons ---------------------------------------------------------------- */
+/* Authored SVG at a single 1.75 stroke weight. No emoji or unicode glyph is used
+   as an icon anywhere in this application. */
+.icon {
+  width: 1.25em; height: 1.25em;
+  fill: none; stroke: currentColor;
+  stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round;
+}
+
+/* --- Utilities ------------------------------------------------------------ */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+.stack > * + * { margin-top: var(--s4); }
+.cluster { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: center; }
+.grid { display: grid; gap: var(--s4); }
+.page-head { margin-bottom: var(--s6); }
+.empty-state { padding: var(--s7) var(--s4); text-align: center; color: var(--muted); }
+
+/* --- Footer --------------------------------------------------------------- */
+.site-footer {
+  border-top: 1px solid var(--border);
+  padding-block: var(--s5);
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+/* --- Accessibility toolbar ------------------------------------------------ */
+.a11y-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+  padding-block: var(--s2);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  font-size: var(--text-sm);
+}
+.a11y-bar__label { font-weight: 600; }
+.a11y-bar button {
+  min-height: 32px;
+  min-width: 32px;
+  padding: var(--s1) var(--s3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--page);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.a11y-bar button:hover { background: var(--surface); }
+.a11y-bar button[aria-pressed="true"] {
+  background: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
+}
+
+/* --- Breakpoints ---------------------------------------------------------- */
+/* Mobile-first. Tested at 360, 768 and 1280; nothing scrolls sideways at 320. */
+@media (min-width: 48em) {          /* 768px */
+  .container { padding-inline: var(--s5); }
+  .grid--two   { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid--split { grid-template-columns: minmax(0, 18rem) minmax(0, 1fr); }
+}
+
+@media (min-width: 80em) {          /* 1280px */
+  .container { padding-inline: var(--s6); }
+  .grid--three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}

@@ -1,0 +1,82 @@
+'use strict';
+
+const { z } = require('zod');
+
+/**
+ * Environment-driven configuration. Zero literals, no local-development branch.
+ *
+ * Real values are supplied as Elastic Beanstalk environment properties. Credentials for AWS
+ * itself are NEVER read from here -- the SDK resolves them from the EC2 instance profile
+ * (LabInstanceProfile -> LabRole), so no access key exists anywhere in this repo.
+ *
+ * This module fails fast: a missing or malformed variable stops the process at boot rather
+ * than surfacing as a confusing runtime error on a request.
+ */
+const schema = z.object({
+  NODE_ENV: z.enum(['production', 'development', 'test']).default('production'),
+  PORT: z.coerce.number().int().positive().default(8080),
+
+  AWS_REGION: z.string().min(1),
+
+  DB_HOST: z.string().min(1),
+  DB_PORT: z.coerce.number().int().positive().default(3306),
+  DB_USER: z.string().min(1),
+  DB_PASSWORD: z.string().min(1),
+  DB_NAME: z.string().min(1),
+  DB_POOL_LIMIT: z.coerce.number().int().positive().default(10),
+
+  S3_BUCKET: z.string().min(1),
+  DDB_TIMELINE_TABLE: z.string().min(1),
+  DDB_SESSIONS_TABLE: z.string().min(1),
+
+  SESSION_SECRET: z.string().min(32, 'SESSION_SECRET must be at least 32 characters'),
+  SESSION_TTL_SECONDS: z.coerce.number().int().positive().default(60 * 60 * 8),
+
+  PRESIGN_GET_TTL_SECONDS: z.coerce.number().int().positive().default(300),
+  PRESIGN_PUT_TTL_SECONDS: z.coerce.number().int().positive().default(300),
+  UPLOAD_MAX_BYTES: z.coerce.number().int().positive().default(5 * 1024 * 1024),
+});
+
+const parsed = schema.safeParse(process.env);
+
+if (!parsed.success) {
+  const detail = parsed.error.issues
+    .map((issue) => `  ${issue.path.join('.')}: ${issue.message}`)
+    .join('\n');
+  throw new Error(`Invalid environment configuration:\n${detail}`);
+}
+
+const env = parsed.data;
+
+module.exports = {
+  nodeEnv: env.NODE_ENV,
+  isProduction: env.NODE_ENV === 'production',
+  port: env.PORT,
+  region: env.AWS_REGION,
+
+  db: {
+    host: env.DB_HOST,
+    port: env.DB_PORT,
+    user: env.DB_USER,
+    password: env.DB_PASSWORD,
+    database: env.DB_NAME,
+    connectionLimit: env.DB_POOL_LIMIT,
+  },
+
+  s3: {
+    bucket: env.S3_BUCKET,
+    getTtlSeconds: env.PRESIGN_GET_TTL_SECONDS,
+    putTtlSeconds: env.PRESIGN_PUT_TTL_SECONDS,
+    uploadMaxBytes: env.UPLOAD_MAX_BYTES,
+  },
+
+  dynamo: {
+    timelineTable: env.DDB_TIMELINE_TABLE,
+    sessionsTable: env.DDB_SESSIONS_TABLE,
+  },
+
+  session: {
+    secret: env.SESSION_SECRET,
+    ttlSeconds: env.SESSION_TTL_SECONDS,
+  },
+};

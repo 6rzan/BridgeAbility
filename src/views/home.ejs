@@ -1,0 +1,41 @@
+<%- include('partials/header') %>
+
+<div class="page-head prose">
+  <h1>Find accessibility services you can trust</h1>
+  <p class="lead">
+    Interpreters, accessible transport, caregivers and mobility assistance — from providers
+    verified before they appear here. Book in one place and follow every request from
+    submission to completion.
+  </p>
+  <p class="cluster">
+    <a class="btn btn--primary" href="/services">
+      <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-search"></use></svg>
+      Browse services
+    </a>
+    <% if (!user) { %>
+      <a class="btn btn--secondary" href="/register">Create an account</a>
+    <% } %>
+  </p>
+</div>
+
+<h2>How a booking works</h2>
+<ol class="stack prose">
+  <li>
+    <strong>Search verified listings.</strong> Filter by category, location, price and
+    availability. Only providers an administrator has approved are ever listed.
+  </li>
+  <li>
+    <strong>Send a request.</strong> Choose a date and time and add anything the provider
+    needs to know about your access requirements.
+  </li>
+  <li>
+    <strong>Track it.</strong> Every change of status is recorded, so you can see exactly
+    where a request stands and when it changed.
+  </li>
+  <li>
+    <strong>Get in-person support if you need it.</strong> A coordinator can assign a
+    volunteer assistant to a confirmed booking.
+  </li>
+</ol>
+
+<%- include('partials/footer') %>
