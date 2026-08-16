@@ -54,6 +54,15 @@
       <% if (locals.inputmode) { %>inputmode="<%= locals.inputmode %>"<% } %>
       <% if (locals.minlength) { %>minlength="<%= locals.minlength %>"<% } %>
       <% if (locals.maxlength) { %>maxlength="<%= locals.maxlength %>"<% } %>
+      <%#
+        Bounds for date, time and number inputs. Tested against null rather than for
+        truthiness because a legitimate min of 0 is falsy, and a price floor that silently
+        disappears is exactly the kind of bug this partial exists to prevent. The server
+        validates the same bound regardless -- this only lets the browser's own picker
+        refuse an out-of-range value before the user submits.
+      -%>
+      <% if (locals.min != null) { %>min="<%= locals.min %>"<% } %>
+      <% if (locals.max != null) { %>max="<%= locals.max %>"<% } %>
       <% if (locals.requiredMessage) { %>data-required-message="<%= locals.requiredMessage %>"<% } %>
       <% if (error) { %>aria-invalid="true"<% } %>
       <% if (describedBy) { %>aria-describedby="<%= describedBy %>"<% } %>

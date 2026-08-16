@@ -1,0 +1,146 @@
+<%- include('../partials/header') %>
+
+<div class="page-head prose">
+  <h1>My bookings</h1>
+  <p class="lead">
+    Every request you have sent, and where each one has got to. Nothing here is visible to
+    anyone but you and the provider you asked.
+  </p>
+</div>
+
+<% if (total === 0) { %>
+  <%#
+    No bookings at all is a different situation from a filter matching nothing, and it gets a
+    different answer: there is nothing to filter, so offering a filter menu would be furniture.
+  -%>
+  <div class="empty-state">
+    <p>You have not requested any services yet.</p>
+    <p><a href="/services">Find a service</a> to send your first booking request.</p>
+  </div>
+<% } else { %>
+  <%#
+    The filter is a list of links, not a form. A link carries the filter in the URL, so it can
+    be bookmarked, shared, opened in a new tab and reached with the Back button, and it needs
+    no scripting whatsoever. aria-current marks the filter in force.
+  -%>
+  <nav class="filter-bar" aria-label="Filter bookings by status">
+    <ul>
+      <li>
+        <a href="/bookings"<%= status === null ? ' aria-current="true"' : '' %>>
+          All <span class="filter-bar__count">(<%= total %>)</span>
+        </a>
+      </li>
+      <% for (const value of statuses) { %>
+        <li>
+          <a href="/bookings?status=<%= value %>"<%= status === value ? ' aria-current="true"' : '' %>>
+            <%= statusLabels[value] %> <span class="filter-bar__count">(<%= counts[value] || 0 %>)</span>
+          </a>
+        </li>
+      <% } %>
+    </ul>
+  </nav>
+
+  <p class="results-count">
+    <% if (pagination.totalItems === 0) { %>
+      No bookings are <%= statusLabels[status].toLowerCase() %>.
+    <% } else { %>
+      Showing <%= pagination.firstOnPage %>&ndash;<%= pagination.lastOnPage %>
+      of <%= pagination.totalItems %> booking<%= pagination.totalItems === 1 ? '' : 's' %><%
+        %><%= status ? ' with the status ' + statusLabels[status].toLowerCase() : '' %>.
+    <% } %>
+  </p>
+
+  <% if (pagination.totalItems === 0) { %>
+    <div class="empty-state">
+      <p>Nothing matched that filter.</p>
+      <p><a href="/bookings">Show all bookings</a>.</p>
+    </div>
+  <% } else { %>
+    <%#
+      A table, because these are records with the same fields read down a column, and because
+      below 768px .table--reflow turns each row into a stacked block labelled from data-label
+      rather than letting the table scroll sideways.
+    -%>
+    <div class="table-wrap">
+      <table class="table--reflow">
+        <caption class="visually-hidden">
+          Your booking requests, most recently requested first.
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Reference</th>
+            <th scope="col">Service</th>
+            <th scope="col">Requested for</th>
+            <th scope="col">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% for (const booking of bookings) { %>
+            <tr>
+              <td data-label="Reference">#<%= booking.booking_id %></td>
+              <td data-label="Service">
+                <%#
+                  One link per row, named with the service rather than "view", so a screen
+                  reader listing the page's links hears which booking each one opens.
+                -%>
+                <a href="/bookings/<%= booking.booking_id %>"><%= booking.title %></a>
+                <span class="muted text-sm"><%= booking.org_name %></span>
+              </td>
+              <td data-label="Requested for">
+                <time datetime="<%= booking.requestedAttribute %>"><%= booking.requestedLabel %></time>
+              </td>
+              <td data-label="Status">
+                <%- include('../partials/status-pill', {
+                  status: booking.status,
+                  statusLabel: booking.statusLabel
+                }) %>
+              </td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+
+    <% if (pagination.totalPages > 1) { %>
+      <nav class="pagination" aria-label="Booking pages">
+        <ul>
+          <li>
+            <% if (pagination.hasPrevious) { %>
+              <a href="/bookings<%= buildQueryString({ page: pagination.currentPage - 1 }) %>" rel="prev">
+                Previous<span class="visually-hidden"> page</span>
+              </a>
+            <% } else { %>
+              <span aria-hidden="true">Previous</span>
+            <% } %>
+          </li>
+
+          <% for (let page = 1; page <= pagination.totalPages; page += 1) { %>
+            <li>
+              <% if (page === pagination.currentPage) { %>
+                <a href="/bookings<%= buildQueryString({ page }) %>" aria-current="page">
+                  <span class="visually-hidden">Page </span><%= page %>
+                </a>
+              <% } else { %>
+                <a href="/bookings<%= buildQueryString({ page }) %>">
+                  <span class="visually-hidden">Page </span><%= page %>
+                </a>
+              <% } %>
+            </li>
+          <% } %>
+
+          <li>
+            <% if (pagination.hasNext) { %>
+              <a href="/bookings<%= buildQueryString({ page: pagination.currentPage + 1 }) %>" rel="next">
+                Next<span class="visually-hidden"> page</span>
+              </a>
+            <% } else { %>
+              <span aria-hidden="true">Next</span>
+            <% } %>
+          </li>
+        </ul>
+      </nav>
+    <% } %>
+  <% } %>
+<% } %>
+
+<%- include('../partials/footer') %>

@@ -311,9 +311,16 @@ legend { padding: 0; margin-bottom: var(--s2); font-weight: 600; }
 .panel__title { margin: 0 0 var(--s2); font-size: var(--text-lg); }
 
 /* --- Status pills --------------------------------------------------------- */
-/* The status word carries the meaning; the tint is secondary. */
+/* Three signals, and the tint is the weakest of them: the status word carries the
+   meaning, a distinct icon silhouette carries it again as shape, and the colour
+   only reinforces what both already said. Accepted and completed share the green
+   deliberately -- the check and the ringed check are what separate them, which is
+   the point of SC 1.4.1. The four tints are the palette's measured foreground
+   colours, so scripts/check-contrast.js already covers every one of them. */
 .status {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
   padding: var(--s1) var(--s3);
   border: 1px solid currentColor;
   border-radius: 999px;
@@ -321,6 +328,7 @@ legend { padding: 0; margin-bottom: var(--s2); font-weight: 600; }
   font-weight: 650;
   white-space: nowrap;
 }
+.status .icon { flex: none; }
 .status--pending   { color: var(--warning); }
 .status--accepted  { color: var(--success); }
 .status--assigned  { color: var(--primary); }
@@ -604,3 +612,72 @@ dd { margin: 0; }
 @media (min-width: 48em) {
   .card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* --- Bookings (F2) --------------------------------------------------------- */
+/* The status filter. Links rather than a form, so every filter is a real URL that
+   can be bookmarked and reached with the Back button, and so it needs no
+   scripting at all. 44px targets clear SC 2.5.8's 24px minimum. */
+.filter-bar { margin-bottom: var(--s5); }
+.filter-bar ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.filter-bar a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s1);
+  min-height: 44px;
+  padding: 0 var(--s4);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--ink);
+  text-decoration: none;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.filter-bar a:hover { background: var(--surface); color: var(--primary); }
+/* The filter in force is filled and bolder as well as recoloured, and carries
+   aria-current, so which one is active never rests on colour alone. */
+.filter-bar a[aria-current] {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #ffffff;
+}
+.filter-bar__count { font-weight: 400; }
+
+/* Free text the requester typed, kept on the lines they typed it on. */
+.notes { white-space: pre-line; }
+
+/* The booking history from DynamoDB. The order is the meaning, so it stays an
+   <ol>; the numbers are replaced by a rule and its dots, and role="list" in the
+   template restores the list semantics that list-style:none takes away in
+   Safari and VoiceOver. */
+.timeline {
+  margin: 0;
+  padding: 0 0 0 var(--s5);
+  list-style: none;
+  border-left: 2px solid var(--border);
+}
+.timeline__item { position: relative; padding-bottom: var(--s5); }
+.timeline__item:last-child { padding-bottom: 0; }
+/* Centred on the rule: the list's 2px border plus 24px of padding puts the
+   rule's centre 25px left of the item, and the dot is 14px across including
+   its own border. */
+.timeline__item::before {
+  content: "";
+  position: absolute;
+  left: calc(-1 * var(--s5) - 8px);
+  top: 0.45em;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--primary);
+  border-radius: 50%;
+  background: var(--page);
+}
+.timeline__label { margin: 0; font-weight: 600; }
+.timeline__meta,
+.timeline__detail { margin: var(--s1) 0 0; }

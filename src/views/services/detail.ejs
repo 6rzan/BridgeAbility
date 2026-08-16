@@ -56,6 +56,22 @@
           </div>
         <% } %>
       </dl>
+
+      <%#
+        Shown to a requester, and to a visitor who is not signed in -- requireAuth on the
+        booking route sends them to sign in and brings them straight back here afterwards.
+        It is hidden from a provider, an administrator or a coordinator, for whom the route
+        would only answer 403. Hiding it is a courtesy, not the access control: that is
+        requireRole('requester') on the router, which is what actually stops them.
+      -%>
+      <% if (!user || user.role === 'requester') { %>
+        <p class="cluster">
+          <a class="btn btn--primary" href="/services/<%= service.service_id %>/book">
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-calendar"></use></svg>
+            Request this service
+          </a>
+        </p>
+      <% } %>
     </div>
 
     <div class="panel">
