@@ -8,9 +8,9 @@
     </div>
   </footer>
 
-  <script src="/js/a11y.js" defer></script>
+  <script src="<%= asset('/js/a11y.js') %>" defer></script>
   <% if (typeof pageScript !== 'undefined' && pageScript) { %>
-    <script src="/js/<%= pageScript %>" defer></script>
+    <script src="<%= asset('/js/' + pageScript) %>" defer></script>
   <% } %>
 </body>
 </html>

@@ -12,6 +12,7 @@ const serviceRoutes = require('./routes/services');
 const sessionMiddleware = require('./middleware/session');
 const { csrfProtection } = require('./middleware/csrf');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
+const { asset } = require('./lib/assetVersion');
 
 const app = express();
 
@@ -48,7 +49,10 @@ app.use(helmet({
 
 app.use(express.urlencoded({ extended: false, limit: '64kb' }));
 app.use(express.json({ limit: '64kb' }));
-app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1h' }));
+// Asset URLs carry a hash of their contents (see lib/assetVersion.js), so a changed file
+// gets a new URL and an unchanged one keeps its old URL. That makes a long cache correct
+// rather than dangerous: `immutable` tells the browser not even to revalidate.
+app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1y', immutable: true }));
 
 // Safe view defaults, set before anything that can fail.
 //
@@ -61,6 +65,7 @@ app.use((req, res, next) => {
   res.locals.currentPath = req.path;
   res.locals.csrfToken = '';
   res.locals.flash = null;
+  res.locals.asset = asset;
   next();
 });
 
@@ -77,6 +82,12 @@ app.use(csrfProtection);
 // Real view values, now that the session exists. csrfProtection has already set
 // res.locals.csrfToken.
 app.use((req, res, next) => {
+  // Rendered pages are never stored. A page rendered for a signed-in user must not be
+  // readable from the cache by pressing Back after sign-out, which matters most on the
+  // shared and public machines a lot of our users rely on. Static assets are unaffected --
+  // they are served above, before this runs.
+  res.set('Cache-Control', 'no-store');
+
   res.locals.user = req.session.user || null;
 
   // Flash messages survive exactly one redirect: read here and removed, so a success notice
