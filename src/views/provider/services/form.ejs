@@ -1,0 +1,292 @@
+<%- include('../../partials/header') %>
+
+<nav aria-label="Breadcrumb" class="breadcrumb">
+  <a href="/provider/services">
+    <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-search"></use></svg>
+    Back to my listings
+  </a>
+</nav>
+
+<div class="page-head prose">
+  <h1><%= listing ? 'Edit listing' : 'Add a listing' %></h1>
+  <p class="lead">
+    <% if (listing) { %>
+      Changes take effect in the catalogue as soon as you save.
+    <% } else { %>
+      Describe one service <%= provider.org_name %> offers. You can add a photograph once the
+      listing is saved.
+    <% } %>
+  </p>
+</div>
+
+<div class="grid grid--split">
+  <form
+    method="post"
+    action="<%= listing ? '/provider/services/' + listing.service_id : '/provider/services' %>"
+    class="panel"
+    novalidate
+    data-validate
+  >
+    <h2 class="panel__title">Service details</h2>
+
+    <%- include('../../partials/error-summary', { errors }) %>
+
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <%- include('../../partials/field', {
+      name: 'title',
+      label: 'Listing title',
+      value: values.title,
+      error: errors.title,
+      hint: 'What a requester will see in the catalogue, for example “Wheelchair-accessible airport transfer”.',
+      requiredMessage: 'Give the listing a title.',
+      minlength: 8,
+      maxlength: 160
+    }) %>
+
+    <div class="field">
+      <label for="field-category">Category</label>
+      <span class="field__hint" id="field-category-hint">
+        Requesters filter the catalogue by this, so choose the closest match.
+      </span>
+      <select
+        class="select"
+        id="field-category"
+        name="category"
+        required
+        aria-describedby="field-category-hint<%= errors.category ? ' field-category-error' : '' %>"
+        <% if (errors.category) { %>aria-invalid="true"<% } %>
+      >
+        <option value="">Choose a category</option>
+        <% for (const [value, label] of Object.entries(categories)) { %>
+          <option value="<%= value %>"<%= values.category === value ? ' selected' : '' %>><%= label %></option>
+        <% } %>
+      </select>
+      <p class="field__error" id="field-category-error" <% if (!errors.category) { %>hidden<% } %>>
+        <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-error"></use></svg>
+        <span data-error-text><%= errors.category || '' %></span>
+      </p>
+    </div>
+
+    <%- include('../../partials/field', {
+      name: 'description',
+      label: 'What the service includes',
+      type: 'textarea',
+      value: values.description,
+      error: errors.description,
+      rows: 6,
+      maxlength: 2000,
+      hint: 'What is provided, how long it lasts, what a requester should expect on the day.',
+      requiredMessage: 'Describe what the service includes.'
+    }) %>
+
+    <%- include('../../partials/field', {
+      name: 'price',
+      label: 'Price (RM)',
+      type: 'number',
+      value: values.price,
+      error: errors.price,
+      inputmode: 'decimal',
+      min: 0,
+      hint: 'The whole price for one booking. Enter 0 if the service is free.',
+      requiredMessage: 'Enter the price for one booking.'
+    }) %>
+
+    <%- include('../../partials/field', {
+      name: 'location',
+      label: 'Where the service is offered',
+      value: values.location,
+      error: errors.location,
+      maxlength: 120,
+      hint: 'The town or city, for example “Kuala Lumpur”. Requesters filter on this.',
+      requiredMessage: 'Enter the town or city this service covers.'
+    }) %>
+
+    <%#
+      Availability is optional as a whole, but the two halves belong together: hours with no
+      days would render as a dangling fragment on the public page, so the server rejects that
+      pairing. A fieldset with a legend is what groups the checkboxes for a screen reader —
+      without it each box is announced with no idea what it belongs to.
+    -%>
+    <fieldset>
+      <legend>Usual availability <span class="muted">(optional)</span></legend>
+      <p class="field__hint" id="field-days-hint">
+        Leave both blank if you work to no fixed timetable. This is shown on the listing; it
+        does not stop anyone requesting another time.
+      </p>
+
+      <div class="cluster" role="group" aria-describedby="field-days-hint">
+        <% for (const day of days) { %>
+          <span class="checkbox">
+            <input
+              type="checkbox"
+              id="field-days-<%= day %>"
+              name="days"
+              value="<%= day %>"
+              <%= values.days.includes(day) ? 'checked' : '' %>
+            >
+            <label for="field-days-<%= day %>"><%= day %></label>
+          </span>
+        <% } %>
+      </div>
+
+      <p class="field__error" id="field-days-error" <% if (!errors.days) { %>hidden<% } %>>
+        <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-error"></use></svg>
+        <span data-error-text><%= errors.days || '' %></span>
+      </p>
+
+      <%- include('../../partials/field', {
+        name: 'hours',
+        label: 'Hours',
+        value: values.hours,
+        error: errors.hours,
+        required: false,
+        hint: 'A 24-hour range, for example 09:00-17:00.',
+        maxlength: 11
+      }) %>
+    </fieldset>
+
+    <p class="cluster">
+      <button type="submit" class="btn btn--primary">
+        <%= listing ? 'Save changes' : 'Create listing' %>
+      </button>
+      <a href="/provider/services">Cancel</a>
+    </p>
+  </form>
+
+  <div>
+    <% if (listing) { %>
+      <%#
+        THE IMAGE PANEL
+        The file goes straight from the browser to S3 with a presigned PUT minted by
+        /image/presign — it never passes through the application tier, so a 5 MB photograph on
+        a slow connection does not occupy a Node process for the length of the upload, and
+        there is no multipart body to buffer or size limit to raise. The content type and the
+        exact byte length are bound into the signature, so S3 itself refuses anything that does
+        not match what the server authorised.
+
+        This is the one part of the slice that needs JavaScript, and it says so rather than
+        presenting a control that quietly does nothing. Everything else here — creating,
+        editing, withdrawing, publishing, deleting, removing an image — is a plain form post
+        that works with scripting off.
+      -%>
+      <div class="panel">
+        <h2 class="panel__title">Listing image</h2>
+
+        <% if (listing.imageUrl) { %>
+          <img class="card__image" src="<%= listing.imageUrl %>" alt="<%= listing.image_alt_text %>" width="640" height="360">
+          <p class="text-sm muted">Description: <%= listing.image_alt_text %></p>
+
+          <form method="post" action="/provider/services/<%= listing.service_id %>/image/remove">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button type="submit" class="btn btn--secondary">Remove image</button>
+          </form>
+        <% } else if (listing.image_s3_key) { %>
+          <p class="text-sm muted">
+            This listing has an image, but it could not be loaded just now. Try again shortly.
+          </p>
+        <% } else { %>
+          <p class="text-sm muted">This listing has no image yet.</p>
+        <% } %>
+
+        <form
+          method="post"
+          action="/provider/services/<%= listing.service_id %>/image"
+          data-image-upload
+          data-presign-url="/provider/services/<%= listing.service_id %>/image/presign"
+          hidden
+        >
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <input type="hidden" name="key" value="" data-image-key>
+
+          <div class="field">
+            <label for="field-image-file"><%= listing.image_s3_key ? 'Replace the image' : 'Choose an image' %></label>
+            <span class="field__hint" id="field-image-file-hint">
+              JPEG, PNG or WebP. A wide photograph works best.
+            </span>
+            <input
+              class="input"
+              type="file"
+              id="field-image-file"
+              accept="image/jpeg,image/png,image/webp"
+              aria-describedby="field-image-file-hint"
+              data-image-file
+            >
+          </div>
+
+          <%#
+            Alt text is required by the application even though the column is nullable, because
+            what must never exist is an image without a description — a relationship between
+            two columns rather than a property of one. A platform for people with disabilities
+            publishing an undescribed photograph would refute its own premise, so the upload
+            simply cannot be completed without it.
+          -%>
+          <%- include('../../partials/field', {
+            name: 'altText',
+            label: 'Describe the image',
+            value: '',
+            error: imageErrors.altText,
+            hint: 'What the photograph shows, for a person who cannot see it. For example “Van with a deployed rear access ramp at a kerbside”.',
+            requiredMessage: 'Describe what the image shows.',
+            minlength: 10,
+            maxlength: 255
+          }) %>
+
+          <p class="field__error" data-image-error hidden>
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-error"></use></svg>
+            <span data-error-text></span>
+          </p>
+
+          <p class="cluster">
+            <button type="submit" class="btn btn--primary" data-image-submit>Upload image</button>
+            <span class="text-sm muted" role="status" data-image-status></span>
+          </p>
+        </form>
+
+        <noscript>
+          <p class="text-sm">
+            Adding an image needs JavaScript, because the file is sent straight to secure
+            storage from your browser. Everything else on this page works without it.
+          </p>
+        </noscript>
+      </div>
+
+      <div class="panel">
+        <h2 class="panel__title">In the catalogue</h2>
+        <p>
+          <span class="status status--<%= listing.isActive ? 'accepted' : 'cancelled' %>">
+            <svg class="icon" aria-hidden="true" focusable="false">
+              <use href="#icon-<%= listing.isActive ? 'check-circle' : 'slash' %>"></use>
+            </svg>
+            <%= listing.isActive ? 'Published' : 'Withdrawn' %>
+          </span>
+        </p>
+        <p class="text-sm">
+          <% if (!listing.isActive) { %>
+            Withdrawn listings are not shown to requesters and cannot be booked.
+          <% } else if (provider.status === 'approved') { %>
+            <a href="/services/<%= listing.service_id %>">See this listing as a requester sees it</a>.
+          <% } else { %>
+            This listing becomes visible to requesters once your organisation is approved.
+          <% } %>
+        </p>
+        <p class="text-sm muted">
+          <%= listing.bookingCount %> booking<%= listing.bookingCount === 1 ? '' : 's' %> made
+          against this listing.
+        </p>
+      </div>
+    <% } else { %>
+      <div class="panel">
+        <h2 class="panel__title">What happens next</h2>
+        <ol class="stack text-sm">
+          <li>The listing is saved against <%= provider.org_name %>.</li>
+          <li>You can then add a photograph and a description of it.</li>
+          <li>Requesters find it by category, location and price, and send booking requests.</li>
+          <li>Withdraw it at any time to take it out of the catalogue without losing anything.</li>
+        </ol>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<%- include('../../partials/footer') %>

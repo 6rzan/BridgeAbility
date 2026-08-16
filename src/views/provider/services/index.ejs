@@ -1,0 +1,139 @@
+<%- include('../../partials/header') %>
+
+<div class="page-head prose">
+  <h1>My listings</h1>
+  <p class="lead">
+    Everything <%= provider.org_name %> offers on BridgeAbility. Withdrawn listings stay here
+    where only you can see them &mdash; they leave the public catalogue, and any bookings
+    already made against them are unaffected.
+  </p>
+</div>
+
+<%#
+  Verification state, read from the providers row rather than the session, so an approval made
+  by an administrator a moment ago is reflected on this page load. A pending provider can still
+  build their listings; they simply are not public yet, and saying so here is kinder than
+  letting them wonder why nobody can find them.
+-%>
+<% if (provider.status !== 'approved') { %>
+  <div class="alert alert--warning" role="status">
+    <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-alert"></use></svg>
+    <div class="alert__body">
+      <% if (provider.status === 'pending') { %>
+        <p>
+          An administrator is still reviewing <%= provider.org_name %>. You can create and edit
+          listings now; none of them appears in the public catalogue until your organisation is
+          approved.
+        </p>
+      <% } else { %>
+        <p>
+          <%= provider.org_name %> was not approved, so these listings are not shown to
+          requesters. Contact the platform administrator if you believe this is a mistake.
+        </p>
+      <% } %>
+    </div>
+  </div>
+<% } %>
+
+<p class="cluster">
+  <a class="btn btn--primary" href="/provider/services/new">
+    <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-check"></use></svg>
+    Add a listing
+  </a>
+</p>
+
+<% if (counts.total === 0) { %>
+  <div class="empty-state">
+    <p>You have not created any listings yet.</p>
+    <p><a href="/provider/services/new">Add your first listing</a> to start receiving requests.</p>
+  </div>
+<% } else { %>
+  <p class="results-count">
+    <%= counts.total %> listing<%= counts.total === 1 ? '' : 's' %>
+    &mdash; <%= counts.active %> published, <%= counts.withdrawn %> withdrawn.
+  </p>
+
+  <%#
+    A table, because these are records read down a column. Below 768px .table--reflow stacks
+    each row into a labelled block instead of scrolling sideways, which is what keeps the page
+    usable at 320px.
+  -%>
+  <div class="table-wrap">
+    <table class="table--reflow">
+      <caption class="visually-hidden">
+        Your service listings, published ones first, then the most recently created.
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Listing</th>
+          <th scope="col">Category</th>
+          <th scope="col">Price</th>
+          <th scope="col">In the catalogue</th>
+          <th scope="col">Bookings</th>
+          <th scope="col">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% for (const listing of listings) { %>
+          <tr>
+            <td data-label="Listing">
+              <a href="/provider/services/<%= listing.service_id %>/edit"><%= listing.title %></a>
+              <span class="muted text-sm"><%= listing.location %></span>
+            </td>
+            <td data-label="Category"><%= listing.categoryLabel %></td>
+            <td data-label="Price">RM <%= Number(listing.price).toFixed(2) %></td>
+            <td data-label="In the catalogue">
+              <%#
+                Not the six booking statuses, so this reuses the pill's shape rather than the
+                pill itself: published maps onto the accepted styling, withdrawn onto cancelled.
+                Both state the answer in words and carry a distinct icon, so colour is never
+                the only signal (WCAG 2.2 SC 1.4.1).
+              -%>
+              <span class="status status--<%= listing.isActive ? 'accepted' : 'cancelled' %>">
+                <svg class="icon" aria-hidden="true" focusable="false">
+                  <use href="#icon-<%= listing.isActive ? 'check-circle' : 'slash' %>"></use>
+                </svg>
+                <%= listing.isActive ? 'Published' : 'Withdrawn' %>
+              </span>
+            </td>
+            <td data-label="Bookings"><%= listing.bookingCount %></td>
+            <td data-label="Actions">
+              <div class="cluster">
+                <a href="/provider/services/<%= listing.service_id %>/edit">
+                  Edit<span class="visually-hidden"> <%= listing.title %></span>
+                </a>
+
+                <form method="post" action="/provider/services/<%= listing.service_id %>/visibility">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <input type="hidden" name="action" value="<%= listing.isActive ? 'withdraw' : 'publish' %>">
+                  <button type="submit" class="btn btn--secondary">
+                    <%= listing.isActive ? 'Withdraw' : 'Publish' %>
+                    <span class="visually-hidden"><%= listing.title %></span>
+                  </button>
+                </form>
+
+                <%#
+                  Deletion is offered only for a listing nobody has booked. bookings.service_id
+                  is ON DELETE CASCADE, so deleting a booked listing would take other people's
+                  booking history with it; the database refuses that (see
+                  providerServiceRepository.deleteUnbookedService) and the button is not shown
+                  for it either, so the provider is not invited to try something that will fail.
+                -%>
+                <% if (listing.canDelete) { %>
+                  <form method="post" action="/provider/services/<%= listing.service_id %>/delete">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <button type="submit" class="btn btn--danger">
+                      Delete<span class="visually-hidden"> <%= listing.title %></span>
+                    </button>
+                  </form>
+                <% } %>
+              </div>
+            </td>
+          </tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+<% } %>
+
+<%- include('../../partials/footer') %>

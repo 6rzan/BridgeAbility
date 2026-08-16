@@ -20,6 +20,9 @@ const ROLE_SUMMARY = {
   provider: {
     heading: 'Service provider',
     blurb: 'Publish the services your organisation offers and respond to incoming booking requests.',
+    tasks: [
+      { href: '/provider/services', label: 'My listings', description: 'Create, edit, withdraw and delete the services your organisation offers.' },
+    ],
   },
   admin: {
     heading: 'Administrator',

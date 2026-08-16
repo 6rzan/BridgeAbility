@@ -9,8 +9,15 @@
   </footer>
 
   <script src="<%= asset('/js/a11y.js') %>" defer></script>
-  <% if (typeof pageScript !== 'undefined' && pageScript) { %>
-    <script src="<%= asset('/js/' + pageScript) %>" defer></script>
+  <%#
+    A page may name one script or several. Normalising here means a view that needs both the
+    shared form validation and its own behaviour does not have to choose between them, and a
+    view that needs neither still says nothing.
+  -%>
+  <% const pageScripts = typeof pageScript === 'undefined' || !pageScript ? []
+       : (Array.isArray(pageScript) ? pageScript : [pageScript]); -%>
+  <% for (const script of pageScripts) { %>
+    <script src="<%= asset('/js/' + script) %>" defer></script>
   <% } %>
 </body>
 </html>

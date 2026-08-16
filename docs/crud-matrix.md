@@ -16,9 +16,9 @@ Data stores: **RDS** (Amazon RDS for MySQL 8) · **DDB** (Amazon DynamoDB) · **
 
 | Store | Create | Read | Update | Delete |
 |---|---|---|---|---|
-| RDS | F-auth (users, providers) · F2 (bookings) · *live* | F1 (services, providers) · F2 (own bookings) · *live* | F2 (cancel) · *live* — F4, F5, F7, F8 planned | planned — F3 |
+| RDS | F-auth (users, providers) · F2 (bookings) · F3 (services) · *live* | F1 (services, providers) · F2 (own bookings) · F3 (own listings) · *live* | F2 (cancel) · F3 (edit, withdraw, publish) · *live* — F4, F5, F7, F8 planned | F3 (delete an unbooked listing) · *live* |
 | DDB | F-auth (sessions) · F2 (timeline events) · *live* | F-auth (sessions) · F2 (booking history) · *live* | F-auth (session touch) · *live* | F-auth (sign-out) · *live* |
-| S3 | F-media (placeholder illustrations) · *live* | F1 (presigned GET) · *live* | planned — F3 | planned — F3 |
+| S3 | F-media (placeholder illustrations) · F3 (presigned PUT) · *live* | F1 (presigned GET) · F3 (own listing images) · *live* | F3 (replace an image) · *live* | F3 (remove an image, delete a listing) · *live* |
 
 "F-auth" is the cross-cutting authentication slice, owned jointly. Every other row has one
 named owner.
@@ -106,11 +106,76 @@ the requester is shown the booking the first one made.
 
 ---
 
+## F3 — create and manage service listings (Abubaker Elsiddig Tageldeen, TP078003)
+
+| Verb | Store | What | Where |
+|---|---|---|---|
+| Create | RDS | `services` row against the signed-in user's own organisation | `POST /provider/services` → `providerServiceRepository.createService` |
+| Read | RDS | Every listing this provider owns, published and withdrawn, each with its booking count | `GET /provider/services` → `providerServiceRepository.listForProvider` |
+| Read | RDS | One listing, only if this provider owns it | `GET /provider/services/:id/edit` → `providerServiceRepository.findForProvider` |
+| Update | RDS | Title, category, description, price, location and availability | `POST /provider/services/:id` → `providerServiceRepository.updateService` |
+| Update | RDS | `services.is_active` — withdraw a listing from the catalogue, or publish it again | `POST /provider/services/:id/visibility` → `providerServiceRepository.setActive` |
+| Delete | RDS | The `services` row, but only one with no bookings against it | `POST /provider/services/:id/delete` → `providerServiceRepository.deleteUnbookedService` |
+| Create | S3 | Presigned PUT so the browser uploads the image directly | `POST /provider/services/:id/image/presign` → `presignPut` |
+| Update | RDS | `image_s3_key` and `image_alt_text`, written together | `POST /provider/services/:id/image` → `providerServiceRepository.setImage` |
+| Read | S3 | Presigned GET for the provider's own management pages | `providerListingService.attachImageUrl` → `presignGet` |
+| Delete | S3 | The replaced object after an image is changed, and the object behind a removed image or a deleted listing | `providerListingService.deleteObjectSafely` → `deleteObject` |
+
+**`provider_id` is never in a request.** It is resolved from `req.session.user.id` through
+`providers.user_id` at the top of every handler, so there is no field in any form and no
+segment in any URL that names an organisation. Every statement in
+`providerServiceRepository` is then keyed on the service *and* that provider id — there is no
+function in the file that reads or writes a service by `service_id` alone. Editing
+`/provider/services/7/edit` to a listing owned by someone else returns nothing from the
+database and answers 404, for the same reason F2 answers 404 rather than 403: "forbidden"
+would confirm that listing 7 exists and belongs to a competitor.
+
+**Why deletion is guarded rather than offered freely.** `bookings.service_id` is declared
+`ON DELETE CASCADE`. Deleting a service that has bookings would therefore not fail — it would
+silently delete other people's booking history along with it, and a requester tracking a
+booking would find it simply gone. `deleteUnbookedService` counts bookings and deletes inside
+one transaction, holding the service row with `SELECT ... FOR SHARE` so a booking arriving in
+that instant waits behind it rather than being cascaded away. A listing that has been booked
+is withdrawn instead: `is_active = 0` removes it from every public query immediately and
+leaves the bookings intact. The button for the wrong one of the two is not rendered, so the
+provider is never invited to try something the database will refuse.
+
+**Why the image never passes through the application tier.** The browser asks for permission,
+gets a presigned PUT, and sends the bytes straight to S3. A 5 MB photograph on a slow mobile
+connection therefore does not occupy a Node process for the length of the upload, and there is
+no multipart body to buffer or request size limit to raise. What makes that safe is that the
+content type and the exact byte length are bound into the signature, so S3 itself rejects a
+request that does not match what the server authorised — "the client could send anything" is
+not true here. The key is derived from the provider and the listing (`services/provider-N/
+service-M/<uuid>.<ext>`) and never accepted from the caller; the confirm step re-derives that
+shape and rejects a key naming another provider's object, because presigning and confirming
+are two separate requests and the second one must verify rather than remember.
+
+**Alt text is required by the application, not by the column.** `services.image_alt_text` is
+nullable because a listing legitimately has no image. What must never exist is an image
+*without* a description — a relationship between two columns rather than a property of one —
+so it is enforced at the only point where an image is attached, in `imageConfirmSchema`. A
+platform for persons with disabilities that publishes an undescribed photograph refutes its
+own premise.
+
+**What needs JavaScript, and what does not.** Creating, editing, withdrawing, publishing,
+deleting a listing and removing its image are all plain form posts that work with scripting
+off. Uploading an image is the one interaction that genuinely requires it, because the file is
+sent to S3 by the browser; the upload form is hidden until `listing-image.js` reveals it and a
+`<noscript>` beside it says so, rather than presenting a control that quietly does nothing.
+
+**A listing is not the same as a visible listing.** A provider may create and edit listings
+while their organisation is still `pending`. The second half of F1's visibility rule
+(`p.status = 'approved'`) keeps those out of the public catalogue until an administrator
+approves them in F5, and both the listings page and the edit page say so rather than leaving
+the provider to wonder why nobody can find them.
+
+---
+
 ## Planned
 
 | | Owner | Verbs it will add |
 |---|---|---|
-| F3 | Abubaker Elsiddig Tageldeen | RDS create/update/delete (`services`), S3 create/delete (presigned PUT) |
 | F4 | Abubaker Elsiddig Tageldeen | RDS update (`bookings.status`), DDB create (timeline event) |
 | F5 | Aldhahyani Lama M. A. | RDS update (`providers.status`), S3 read (presigned GET of verification document) |
 | F6 | Aldhahyani Lama M. A. | RDS read (aggregates), DDB read (GSI-1 query) |
