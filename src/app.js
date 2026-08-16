@@ -9,6 +9,7 @@ const healthRoutes = require('./routes/health');
 const authRoutes = require('./routes/auth');
 const dashboardRoutes = require('./routes/dashboard');
 const serviceRoutes = require('./routes/services');
+const bookingRoutes = require('./routes/bookings');
 const sessionMiddleware = require('./middleware/session');
 const { csrfProtection } = require('./middleware/csrf');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
@@ -107,6 +108,7 @@ app.get('/', (req, res) => {
 app.use(authRoutes);
 app.use(dashboardRoutes);
 app.use(serviceRoutes);
+app.use(bookingRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

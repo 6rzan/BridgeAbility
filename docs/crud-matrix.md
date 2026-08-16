@@ -16,8 +16,8 @@ Data stores: **RDS** (Amazon RDS for MySQL 8) · **DDB** (Amazon DynamoDB) · **
 
 | Store | Create | Read | Update | Delete |
 |---|---|---|---|---|
-| RDS | F-auth (users, providers) · *live* | F1 (services, providers) · *live* | planned — F4, F5, F7, F8 | planned — F3 |
-| DDB | F-auth (sessions) · *live* | F-auth (sessions) · *live* | F-auth (session touch) · *live* | F-auth (sign-out) · *live* |
+| RDS | F-auth (users, providers) · F2 (bookings) · *live* | F1 (services, providers) · F2 (own bookings) · *live* | F2 (cancel) · *live* — F4, F5, F7, F8 planned | planned — F3 |
+| DDB | F-auth (sessions) · F2 (timeline events) · *live* | F-auth (sessions) · F2 (booking history) · *live* | F-auth (session touch) · *live* | F-auth (sign-out) · *live* |
 | S3 | F-media (placeholder illustrations) · *live* | F1 (presigned GET) · *live* | planned — F3 | planned — F3 |
 
 "F-auth" is the cross-cutting authentication slice, owned jointly. Every other row has one
@@ -65,11 +65,51 @@ server-side check.
 
 ---
 
+## F2 — submit a booking request and track its status (Taha Fahd Ahmed Mohammed, TP078281)
+
+| Verb | Store | What | Where |
+|---|---|---|---|
+| Create | RDS | `bookings` row, inside a transaction with a re-check that the listing is still visible | `POST /bookings` → `bookingRepository.createBooking` |
+| Create | DDB | `BOOKING_CREATED` timeline event | `POST /bookings` → `timelineRepository.appendEvent` |
+| Read | RDS | One page of this requester's own bookings, filtered by status | `GET /bookings` → `bookingRepository.listForRequester` |
+| Read | RDS | Match count, and the per-status counts the filter menu shows | `GET /bookings` → `countForRequester`, `countByStatusForRequester` |
+| Read | RDS | One booking, joined to its service, provider and assignment | `GET /bookings/:id` → `bookingRepository.findForRequester` |
+| Read | DDB | The whole history of one booking, one Query on `PK BOOKING#<id>` | `GET /bookings/:id` → `timelineRepository.listEvents` |
+| Update | RDS | `bookings.status` → `cancelled`, guarded on the row still being pending | `POST /bookings/:id/cancel` → `bookingRepository.cancelPending` |
+| Create | DDB | `BOOKING_CANCELLED` timeline event, written only when a row actually changed | `POST /bookings/:id/cancel` → `timelineRepository.appendEvent` |
+
+**Authorization is in the WHERE clause.** There is no function in `bookingRepository` that
+fetches a booking by id alone. Every read and write is keyed on the booking *and* the
+requester who owns it, so changing `/bookings/4` to `/bookings/5` returns nothing from the
+database and answers 404 — not 403, which would confirm that booking 5 exists and belongs to
+someone else. The role guard on the router is the second line, not the only one.
+
+**Why the history is in DynamoDB and the status is not.** A booking's current state must be
+transactional, joined and constrained by foreign keys, which is MySQL's job. Its history is an
+append-only stream, never updated, always read as "everything about one booking, in order",
+written by four different roles, and unbounded in growth. That is a key-and-range access
+pattern with no joins: partition key the booking, sort key the moment, so one Query returns
+the ordered history at a cost that does not change as the table passes a million events.
+
+**Ordering across the two stores.** MySQL commits first, always, because it holds the
+authoritative status. DynamoDB is appended afterwards and outside that transaction; if the
+append fails, the booking still exists and the failure is written to CloudWatch Logs as a
+greppable reconciliation line rather than failing the user's action. There is no distributed
+transaction across RDS and DynamoDB, and pretending otherwise would be the real mistake. The
+opposite order can leave a timeline entry for a booking that was never created, which tells
+the requester their request was sent when no provider will ever see it.
+
+**Double submission.** `request_key` is a UUID generated once per rendering of the form and
+carries a UNIQUE index. A double-click, a refresh on the POST, or a retry over a dropping
+mobile connection all arrive with the same key, so the second insert raises `ER_DUP_ENTRY` and
+the requester is shown the booking the first one made.
+
+---
+
 ## Planned
 
 | | Owner | Verbs it will add |
 |---|---|---|
-| F2 | Taha Fahd Ahmed Mohammed | RDS create (`bookings`), DDB create (timeline event), RDS read (own bookings) |
 | F3 | Abubaker Elsiddig Tageldeen | RDS create/update/delete (`services`), S3 create/delete (presigned PUT) |
 | F4 | Abubaker Elsiddig Tageldeen | RDS update (`bookings.status`), DDB create (timeline event) |
 | F5 | Aldhahyani Lama M. A. | RDS update (`providers.status`), S3 read (presigned GET of verification document) |

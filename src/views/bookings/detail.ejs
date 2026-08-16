@@ -1,0 +1,164 @@
+<%- include('../partials/header') %>
+
+<nav aria-label="Breadcrumb" class="breadcrumb">
+  <a href="/bookings">
+    <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-clock"></use></svg>
+    Back to my bookings
+  </a>
+</nav>
+
+<div class="page-head">
+  <p class="cluster">
+    <%- include('../partials/status-pill', {
+      status: booking.status,
+      statusLabel: booking.statusLabel
+    }) %>
+    <span class="muted text-sm">Booking #<%= booking.booking_id %></span>
+  </p>
+
+  <h1><%= booking.title %></h1>
+
+  <%#
+    The status word alone tells a requester what state a record is in, not what it means for
+    them or what they can do next. The explanation says that in plain language, and it is
+    ordinary page text rather than a tooltip so it is there for everyone.
+  -%>
+  <p class="lead"><%= booking.statusExplanation %></p>
+</div>
+
+<div class="grid grid--split">
+  <div>
+    <div class="panel">
+      <h2 class="panel__title">Your request</h2>
+      <dl class="stack">
+        <div>
+          <dt class="text-sm muted">Requested for</dt>
+          <dd>
+            <time datetime="<%= booking.requestedAttribute %>"><%= booking.requestedLabel %></time>
+          </dd>
+        </div>
+        <div>
+          <dt class="text-sm muted">Sent</dt>
+          <dd><%= booking.createdLabel %></dd>
+        </div>
+        <div>
+          <dt class="text-sm muted">Provider</dt>
+          <dd><%= booking.org_name %></dd>
+        </div>
+        <div>
+          <dt class="text-sm muted">Location</dt>
+          <dd>
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-map-pin"></use></svg>
+            <%= booking.location %>
+          </dd>
+        </div>
+        <div>
+          <dt class="text-sm muted">Price</dt>
+          <dd>RM <%= Number(booking.price).toFixed(2) %></dd>
+        </div>
+        <% if (booking.notes) { %>
+          <div>
+            <dt class="text-sm muted">What you told the provider</dt>
+            <%# Entered as multiple lines, so the line breaks are kept rather than collapsed. -%>
+            <dd class="notes"><%= booking.notes %></dd>
+          </div>
+        <% } %>
+      </dl>
+
+      <p class="cluster">
+        <a href="/services/<%= booking.service_id %>">View the full listing</a>
+      </p>
+    </div>
+
+    <%#
+      The history, read from Amazon DynamoDB: one Query on PK BOOKING#<id>, already ordered by
+      the sort key. Each entry says what happened, when, and who did it, and nothing here is
+      ever edited or removed -- a timeline that could be rewritten would not be a record.
+    -%>
+    <div class="panel">
+      <h2 class="panel__title">History</h2>
+
+      <% if (!timelineAvailable) { %>
+        <p class="muted">
+          The history could not be loaded just now. The status above is current and is held
+          separately, so it is unaffected. Reload the page to try again.
+        </p>
+      <% } else if (timeline.length === 0) { %>
+        <p class="muted">Nothing has been recorded against this booking yet.</p>
+      <% } else { %>
+        <ol class="timeline" role="list">
+          <% for (const entry of timeline) { %>
+            <li class="timeline__item">
+              <p class="timeline__label"><%= entry.label %></p>
+              <p class="timeline__meta text-sm muted">
+                <time datetime="<%= entry.occurredAt %>"><%= entry.occurredLabel %></time>
+                <% if (entry.actorName) { %>
+                  &middot; <%= entry.actorName %>
+                <% } %>
+              </p>
+              <% if (entry.detail) { %>
+                <p class="timeline__detail text-sm"><%= entry.detail %></p>
+              <% } %>
+            </li>
+          <% } %>
+        </ol>
+      <% } %>
+    </div>
+  </div>
+
+  <div>
+    <% if (booking.provider_contact) { %>
+      <%#
+        Contact details appear only once the provider has accepted. Until then a booking
+        request is not a way to pull a phone number out of a listing -- the SQL decides this,
+        not this template (see bookingRepository.findForRequester).
+      -%>
+      <div class="panel">
+        <h2 class="panel__title">Contact the provider</h2>
+        <p><%= booking.org_name %></p>
+        <p><%= booking.provider_contact %></p>
+      </div>
+    <% } %>
+
+    <% if (booking.volunteer_name) { %>
+      <div class="panel">
+        <h2 class="panel__title">Your volunteer assistant</h2>
+        <p><%= booking.volunteer_name %></p>
+        <% if (booking.volunteer_contact) { %>
+          <p><%= booking.volunteer_contact %></p>
+        <% } %>
+      </div>
+    <% } %>
+
+    <% if (booking.canCancel) { %>
+      <div class="panel">
+        <h2 class="panel__title">Cancel this request</h2>
+        <p class="text-sm">
+          You can cancel while the provider has not answered. This cannot be undone &mdash;
+          you would need to send a new request.
+        </p>
+        <%#
+          A real form, so cancelling works with scripting off, and a POST because it changes
+          state. No confirm() dialog: a modal that only appears with JavaScript is not a
+          safeguard, and the button below already says plainly what it does.
+        -%>
+        <form method="post" action="/bookings/<%= booking.booking_id %>/cancel">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button type="submit" class="btn btn--danger">Cancel this request</button>
+        </form>
+      </div>
+    <% } %>
+
+    <div class="panel">
+      <h2 class="panel__title">What happens next</h2>
+      <ol class="stack text-sm">
+        <li>The provider accepts or declines your request.</li>
+        <li>If it is accepted, a coordinator assigns a volunteer assistant.</li>
+        <li>The assistant carries out the booking and it is marked completed.</li>
+      </ol>
+      <p class="text-sm muted">Every step is added to the history on this page.</p>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

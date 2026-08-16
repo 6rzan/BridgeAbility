@@ -14,6 +14,7 @@ const ROLE_SUMMARY = {
     blurb: 'Search verified listings, send booking requests and follow each one through to completion.',
     tasks: [
       { href: '/services', label: 'Find services', description: 'Search verified listings by category, location and price.' },
+      { href: '/bookings', label: 'My bookings', description: 'Track every request you have sent and cancel one the provider has not answered.' },
     ],
   },
   provider: {
