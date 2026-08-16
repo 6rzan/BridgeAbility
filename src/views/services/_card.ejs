@@ -1,0 +1,42 @@
+<%#
+  One listing in the catalogue.
+
+  The whole card is not a link. Only the title is, so a screen reader announces one clear
+  link per listing instead of repeating the entire card's text, and so the price and provider
+  can be read without being swallowed into the link name.
+-%>
+<li class="card">
+  <% if (service.imageUrl) { %>
+    <%#
+      Served from S3 through a presigned URL minted for this request. The bucket blocks all
+      public access, so this link is the only way the image is reachable, and it expires.
+      Alt text is mandatory at the database level -- image_alt_text is written on upload in
+      F3 -- so an image can never reach this page without a text alternative.
+    -%>
+    <img class="card__image" src="<%= service.imageUrl %>" alt="<%= service.image_alt_text || '' %>" loading="lazy" width="480" height="270">
+  <% } %>
+
+  <div class="card__body">
+    <p class="card__meta">
+      <span class="tag"><%= service.category %></span>
+      <span class="muted"><%= service.org_name %></span>
+    </p>
+
+    <h3 class="card__title">
+      <a href="/services/<%= service.service_id %>"><%= service.title %></a>
+    </h3>
+
+    <p class="card__description"><%= service.description %></p>
+
+    <p class="card__facts">
+      <span>
+        <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-search"></use></svg>
+        <%= service.location %>
+      </span>
+      <%# The currency is spelled out for assistive technology; "RM" alone is read as letters. -%>
+      <span class="card__price">
+        <span class="visually-hidden">Price: </span>RM <%= Number(service.price).toFixed(2) %>
+      </span>
+    </p>
+  </div>
+</li>

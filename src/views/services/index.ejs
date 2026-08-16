@@ -1,0 +1,88 @@
+<%- include('../partials/header') %>
+
+<div class="page-head prose">
+  <h1>Find services</h1>
+  <p class="lead">
+    Every listing here comes from a provider an administrator has verified. Filter by what you
+    need, where you are and what you can spend.
+  </p>
+</div>
+
+<div class="grid grid--split">
+  <%#
+    A plain GET form. With scripting off it submits, the page reloads with the filters in the
+    query string, and everything works. service-search.js then intercepts it to update the
+    results in place -- an enhancement layered on a working form, not a replacement for one.
+  -%>
+  <form class="filters panel" method="get" action="/services" data-service-search>
+    <h2 class="panel__title">Filter</h2>
+
+    <%- include('../partials/field', {
+      name: 'q',
+      label: 'Search',
+      value: criteria.q,
+      error: errors.q,
+      required: false,
+      hint: 'Words from the service, the description or the provider name.',
+      maxlength: 120
+    }) %>
+
+    <div class="field">
+      <label for="field-category">Category <span class="muted">(optional)</span></label>
+      <select class="select" id="field-category" name="category">
+        <option value="">All categories</option>
+        <% for (const category of categories) { %>
+          <option value="<%= category %>"<%= criteria.category === category ? ' selected' : '' %>><%= category %></option>
+        <% } %>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="field-location">Location <span class="muted">(optional)</span></label>
+      <%# Built from the listings that actually exist, so this can never offer an empty result. -%>
+      <select class="select" id="field-location" name="location">
+        <option value="">Anywhere</option>
+        <% for (const location of locations) { %>
+          <option value="<%= location %>"<%= criteria.location === location ? ' selected' : '' %>><%= location %></option>
+        <% } %>
+      </select>
+    </div>
+
+    <%- include('../partials/field', {
+      name: 'maxPrice',
+      label: 'Maximum price (RM)',
+      type: 'number',
+      value: criteria.maxPrice,
+      error: errors.maxPrice,
+      required: false,
+      inputmode: 'decimal'
+    }) %>
+
+    <div class="field">
+      <label for="field-sort">Sort by</label>
+      <select class="select" id="field-sort" name="sort">
+        <% for (const [key, option] of Object.entries(sortOptions)) { %>
+          <option value="<%= key %>"<%= criteria.sort === key ? ' selected' : '' %>><%= option.label %></option>
+        <% } %>
+      </select>
+    </div>
+
+    <p class="cluster">
+      <%# Hidden by script, because the enhanced page filters as you change a field. -%>
+      <button type="submit" class="btn btn--primary" data-search-submit>Apply filters</button>
+      <a href="/services">Clear</a>
+    </p>
+  </form>
+
+  <%#
+    aria-live="polite" announces the new result count after a filter changes. Without it, a
+    screen reader user changing a filter gets silence and no reason to think anything happened.
+    aria-busy is set by the script while a request is in flight.
+  -%>
+  <section aria-labelledby="results-heading" aria-live="polite" aria-busy="false" data-results-region>
+    <h2 id="results-heading" class="visually-hidden">Search results</h2>
+    <%- include('_results') %>
+  </section>
+</div>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,71 @@
+<%- include('../partials/header') %>
+
+<nav aria-label="Breadcrumb" class="breadcrumb">
+  <a href="/services">
+    <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-search"></use></svg>
+    Back to all services
+  </a>
+</nav>
+
+<div class="grid grid--split">
+  <div class="prose">
+    <p class="cluster">
+      <span class="tag"><%= service.category %></span>
+      <span class="muted"><%= service.org_name %></span>
+    </p>
+
+    <h1><%= service.title %></h1>
+
+    <% if (service.imageUrl) { %>
+      <img class="detail__image" src="<%= service.imageUrl %>" alt="<%= service.image_alt_text || '' %>" width="960" height="540">
+    <% } %>
+
+    <p class="lead"><%= service.description %></p>
+
+    <% if (service.provider_description) { %>
+      <h2>About <%= service.org_name %></h2>
+      <p><%= service.provider_description %></p>
+    <% } %>
+  </div>
+
+  <div>
+    <div class="panel">
+      <h2 class="panel__title">At a glance</h2>
+      <dl class="stack">
+        <div>
+          <dt class="text-sm muted">Price</dt>
+          <dd>RM <%= Number(service.price).toFixed(2) %></dd>
+        </div>
+        <div>
+          <dt class="text-sm muted">Location</dt>
+          <dd><%= service.location %></dd>
+        </div>
+        <% if (availability) { %>
+          <div>
+            <dt class="text-sm muted">Available</dt>
+            <dd>
+              <%= availability.days.join(', ') %><% if (availability.hours) { %>,
+                <%= availability.hours.replace('-', ' to ') %><% } %>
+            </dd>
+          </div>
+        <% } %>
+        <% if (service.contact) { %>
+          <div>
+            <dt class="text-sm muted">Provider contact</dt>
+            <dd><%= service.contact %></dd>
+          </div>
+        <% } %>
+      </dl>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel__title">Verified provider</h2>
+      <p class="text-sm">
+        <%= service.org_name %> was checked and approved by a BridgeAbility administrator
+        before this listing became visible.
+      </p>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

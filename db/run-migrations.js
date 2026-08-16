@@ -105,6 +105,30 @@ async function runFile(connection, file) {
   console.log(`[migrate] ${file}: ${applied} applied, ${skipped} already present`);
 }
 
+/**
+ * Apply every file in db/patches in filename order.
+ *
+ * Seeding only runs against an empty database, so once an environment has been seeded there
+ * is no way to correct or extend that data through seed.sql. Patches fill that gap: they run
+ * on every deploy and each one is written to be idempotent, so re-running is a no-op. Ordering
+ * by filename is why they are numbered.
+ */
+async function runPatches(connection) {
+  const directory = path.join(__dirname, 'patches');
+
+  if (!fs.existsSync(directory)) {
+    return;
+  }
+
+  const files = fs.readdirSync(directory)
+    .filter((file) => file.endsWith('.sql'))
+    .sort();
+
+  for (const file of files) {
+    await runFile(connection, path.join('patches', file));
+  }
+}
+
 async function main() {
   const connection = await mysql.createConnection({
     host: process.env.DB_HOST,
@@ -121,11 +145,14 @@ async function main() {
     const [rows] = await connection.query('SELECT COUNT(*) AS total FROM users');
     if (rows[0].total > 0) {
       console.log(`[migrate] seed skipped — users table already holds ${rows[0].total} rows`);
-      return;
+    } else {
+      await runFile(connection, 'seed.sql');
+      console.log('[migrate] seed applied');
     }
 
-    await runFile(connection, 'seed.sql');
-    console.log('[migrate] seed applied');
+    // Patches run whether or not the database was just seeded, because their job is to
+    // correct or extend data in an environment that was seeded on an earlier deploy.
+    await runPatches(connection);
   } finally {
     await connection.end();
   }
