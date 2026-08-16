@@ -1,0 +1,110 @@
+<%- include('../../partials/header') %>
+
+<div class="page-head prose">
+  <h1>Activity reports</h1>
+  <p class="lead">
+    A snapshot of every booking, provider registration and volunteer assignment on the
+    platform right now, plus the most recently completed bookings.
+  </p>
+</div>
+
+<div class="grid grid--three">
+  <div class="panel">
+    <h2 class="panel__title">Bookings by status</h2>
+    <dl class="stack">
+      <% for (const status of bookingStatuses) { %>
+        <div class="cluster cluster--spread">
+          <dt><%- include('../../partials/status-pill', { status, statusLabel: bookingStatusLabels[status] }) %></dt>
+          <dd><strong><%= bookingCounts[status] %></strong></dd>
+        </div>
+      <% } %>
+    </dl>
+  </div>
+
+  <div class="panel">
+    <h2 class="panel__title">Provider registrations by status</h2>
+    <dl class="stack">
+      <% for (const status of providerStatuses) { %>
+        <div class="cluster cluster--spread">
+          <dt>
+            <%#
+              Not the six booking statuses, so this borrows the pill's shape rather than the
+              partial itself -- the same choice admin/providers/index.ejs already made.
+            -%>
+            <span class="status status--<%
+              %><%= status === 'approved' ? 'accepted' : status === 'rejected' ? 'rejected' : 'pending' %>">
+              <svg class="icon" aria-hidden="true" focusable="false">
+                <use href="#icon-<%
+                  %><%= status === 'approved' ? 'check-circle' : status === 'rejected' ? 'error' : 'clock' %>"></use>
+              </svg>
+              <%= providerStatusLabels[status] %>
+            </span>
+          </dt>
+          <dd><strong><%= providerCounts[status] %></strong></dd>
+        </div>
+      <% } %>
+    </dl>
+  </div>
+
+  <div class="panel">
+    <h2 class="panel__title">Volunteer assignments by completion status</h2>
+    <dl class="stack">
+      <% for (const status of completionStatuses) { %>
+        <div class="cluster cluster--spread">
+          <dt>
+            <%#
+              Not the six booking statuses either -- borrows the same pill shape, mapped onto
+              the closest existing colour/icon pairing rather than adding a new one.
+            -%>
+            <span class="status status--<%
+              %><%= status === 'completed' ? 'completed' : status === 'in_progress' ? 'assigned' : 'pending' %>">
+              <svg class="icon" aria-hidden="true" focusable="false">
+                <use href="#icon-<%
+                  %><%= status === 'completed' ? 'check-circle' : status === 'in_progress' ? 'user' : 'clock' %>"></use>
+              </svg>
+              <%= completionLabels[status] %>
+            </span>
+          </dt>
+          <dd><strong><%= assignmentCounts[status] %></strong></dd>
+        </div>
+      <% } %>
+    </dl>
+  </div>
+</div>
+
+<div class="panel">
+  <h2 class="panel__title">Recently completed bookings</h2>
+
+  <% if (!timelineAvailable) { %>
+    <p class="muted">
+      The activity history is temporarily unavailable, so this list could not be loaded. The
+      counts above are unaffected -- they come from a different store.
+    </p>
+  <% } else if (recentlyCompleted.length === 0) { %>
+    <p class="muted">No booking has been completed yet.</p>
+  <% } else { %>
+    <div class="table-wrap">
+      <table class="table--reflow">
+        <caption class="visually-hidden">Bookings completed most recently first.</caption>
+        <thead>
+          <tr>
+            <th scope="col">Booking</th>
+            <th scope="col">Completed by</th>
+            <th scope="col">Completed</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% for (const event of recentlyCompleted) { %>
+            <tr>
+              <td data-label="Booking">#<%= event.bookingId %></td>
+              <td data-label="Completed by"><%= event.actorName %></td>
+              <td data-label="Completed"><%= event.occurredLabel %></td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>
+
+<%- include('../../partials/footer') %>

@@ -30,6 +30,7 @@ const ROLE_SUMMARY = {
     blurb: 'Review provider registrations before they become visible, and monitor activity across the platform.',
     tasks: [
       { href: '/admin/providers', label: 'Provider registrations', description: 'Approve or reject organisations before their listings become visible.' },
+      { href: '/admin/reports', label: 'Activity reports', description: 'See bookings, provider registrations and volunteer assignments by status across the whole platform.' },
     ],
   },
   coordinator: {

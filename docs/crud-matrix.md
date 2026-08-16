@@ -16,8 +16,8 @@ Data stores: **RDS** (Amazon RDS for MySQL 8) · **DDB** (Amazon DynamoDB) · **
 
 | Store | Create | Read | Update | Delete |
 |---|---|---|---|---|
-| RDS | F-auth (users, providers) · F2 (bookings) · F3 (services) · *live* | F1 (services, providers) · F2 (own bookings) · F3 (own listings) · F4 (incoming queue) · F5 (registration queue) · *live* | F2 (cancel) · F3 (edit, withdraw, publish) · F4 (accept/reject) · F5 (approve/reject) · *live* — F7, F8 planned | F3 (delete an unbooked listing) · *live* |
-| DDB | F-auth (sessions) · F2 (timeline events) · F4 (accept/reject events) · *live* | F-auth (sessions) · F2 (booking history) · F4 (booking history) · *live* | F-auth (session touch) · *live* | F-auth (sign-out) · *live* |
+| RDS | F-auth (users, providers) · F2 (bookings) · F3 (services) · *live* | F1 (services, providers) · F2 (own bookings) · F3 (own listings) · F4 (incoming queue) · F5 (registration queue) · F6 (status aggregates) · *live* | F2 (cancel) · F3 (edit, withdraw, publish) · F4 (accept/reject) · F5 (approve/reject) · *live* — F7, F8 planned | F3 (delete an unbooked listing) · *live* |
+| DDB | F-auth (sessions) · F2 (timeline events) · F4 (accept/reject events) · *live* | F-auth (sessions) · F2 (booking history) · F4 (booking history) · F6 (completed-bookings report, `GSI-1`) · *live* | F-auth (session touch) · *live* | F-auth (sign-out) · *live* |
 | S3 | F-media (placeholder illustrations, verification documents) · F3 (presigned PUT) · *live* | F1 (presigned GET) · F3 (own listing images) · F5 (verification document) · *live* | F3 (replace an image) · *live* | F3 (remove an image, delete a listing) · *live* |
 
 "F-auth" is the cross-cutting authentication slice, owned jointly. Every other row has one
@@ -237,10 +237,51 @@ registration was already decided.
 
 ---
 
+## F6 — admin monitors system-wide activity through reports (Aldhahyani Lama M. A., TP078792)
+
+| Verb | Store | What | Where |
+|---|---|---|---|
+| Read | RDS | Bookings grouped by status, across every requester and provider | `GET /admin/reports` → `reportRepository.bookingsByStatus` |
+| Read | RDS | Provider registrations grouped by review status | `GET /admin/reports` → `reportRepository.providersByStatus` |
+| Read | RDS | Volunteer assignments grouped by completion status | `GET /admin/reports` → `reportRepository.assignmentsByCompletionStatus` |
+| Read | DDB | The ten most recently completed bookings, newest first, via `GSI-1` | `GET /admin/reports` → `timelineRepository.queryCompletedEvents` |
+
+**A read-only route.** Nothing here writes anything, so unlike every other functionality there
+is no form, no CSRF token and no per-row ownership check — the role guard on the router
+(`requireRole('admin')`) is the whole access-control model, the same as F5.
+
+**Why the three RDS counts run before the DynamoDB query, not instead of it.** The three
+`GROUP BY` aggregates and the Dynamo query are independent of each other, so `adminReportService
+.buildReport` runs all four in parallel with `Promise.all` around the three RDS calls and its own
+try/catch around the Dynamo one. A slow or failed Dynamo query degrades to an empty "recently
+completed" list with a note on the page rather than losing the whole report — the same choice
+`bookingService.findForRequester` already makes for one booking's own timeline.
+
+**`GSI-1` already existed.** `timelineRepository.js`'s own header comment named this index as
+part of the original design (partition `status`, sort `SK`), but nothing in this repository
+provisions infrastructure — a read-only `aws dynamodb describe-table` check against the deployed
+table confirmed `GSI-1` was already `ACTIVE` with exactly that key schema before any query code
+was written against it, so no `update-table` call was needed.
+
+**A GROUP BY does not report a status nobody has reached.** If every seeded provider is
+`pending` or `approved`, `providersByStatus` never returns a `rejected` row at all — not a row
+with `0`. Showing that as a missing line in a three-row summary reads as the status not
+existing; `adminReportService.withZeroCounts` fills every status the page names with `0` before
+rendering, the same shape as F5's index page already handles inline with `counts[value] || 0`
+for the one status it displays this way, extracted here because the report page needs it three
+times over three different enums (`bookings.status`, `providers.status`,
+`assignments.completion_status`).
+
+**`COMPLETION_LABELS` is duplicated, not imported, on purpose.** F8 is the functionality that
+will own `assignments.completion_status` end to end, but it does not exist yet at the point F6
+is built. Three short label strings defined a second time in `adminReportService.js` is cheaper
+than an import reaching into a file that has not been written.
+
+---
+
 ## Planned
 
 | | Owner | Verbs it will add |
 |---|---|---|
-| F6 | Aldhahyani Lama M. A. | RDS read (aggregates), DDB read (GSI-1 query) |
 | F7 | Noor Khalil Abdullah Khaled | RDS create (`assignments`), RDS update (`bookings.status`) |
 | F8 | Noor Khalil Abdullah Khaled | RDS update (`assignments.completion_status`), DDB create (timeline event) |

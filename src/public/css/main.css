@@ -407,6 +407,9 @@ th { font-weight: 650; }
 }
 .stack > * + * { margin-top: var(--s4); }
 .cluster { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: center; }
+/* A cluster whose two ends are pushed apart, e.g. a status pill on the left, a count on the
+   right (admin/reports/index.ejs). */
+.cluster--spread { justify-content: space-between; }
 .grid { display: grid; gap: var(--s4); }
 .page-head { margin-bottom: var(--s6); }
 .empty-state { padding: var(--s7) var(--s4); text-align: center; color: var(--muted); }

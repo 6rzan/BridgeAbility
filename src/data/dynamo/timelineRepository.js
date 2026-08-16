@@ -121,9 +121,37 @@ async function listEvents(bookingId) {
   return result.Items || [];
 }
 
+/**
+ * Every booking that reached 'completed', newest first (F6).
+ *
+ * Reads through GSI-1 (partition status, sort SK). 'status' is a DynamoDB reserved word, so it
+ * has to be aliased in ExpressionAttributeNames rather than written directly in the expression.
+ * This is a report, not a per-booking page, so it does not need ConsistentRead: GSI updates lag
+ * the base table by at most a moment, and a booking that completed seconds ago showing up on
+ * the next page load rather than this one is not a correctness problem here the way an empty
+ * history would be on listEvents.
+ */
+async function queryCompletedEvents({ limit = 10 } = {}) {
+  const result = await documentClient.send(new QueryCommand({
+    TableName: config.dynamo.timelineTable,
+    IndexName: 'GSI-1',
+    KeyConditionExpression: '#status = :status',
+    ExpressionAttributeNames: { '#status': 'status' },
+    // The GSI's 'status' attribute is the booking's own status column, not the event name -- see
+    // appendEvent above, which writes it from the same `status` bookingService passes on every
+    // call. 'completed' is therefore a literal, not EVENTS.COMPLETED (which is 'BOOKING_COMPLETED').
+    ExpressionAttributeValues: { ':status': 'completed' },
+    ScanIndexForward: false,
+    Limit: limit,
+  }));
+
+  return result.Items || [];
+}
+
 module.exports = {
   appendEvent,
   listEvents,
+  queryCompletedEvents,
   partitionKey,
   EVENTS,
   EVENT_LABELS,
