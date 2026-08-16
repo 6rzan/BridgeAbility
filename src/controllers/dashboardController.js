@@ -36,6 +36,9 @@ const ROLE_SUMMARY = {
   coordinator: {
     heading: 'Coordinator',
     blurb: 'Assign volunteer assistants to confirmed bookings and record how each one finished.',
+    tasks: [
+      { href: '/coordinator/bookings', label: 'Volunteer assignments', description: 'Assign a volunteer to a confirmed booking and log how it went.' },
+    ],
   },
 };
 

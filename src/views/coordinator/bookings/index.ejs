@@ -1,0 +1,123 @@
+<%- include('../../partials/header') %>
+
+<div class="page-head prose">
+  <h1>Volunteer assignments</h1>
+  <p class="lead">
+    Every confirmed booking, grouped by whether it still needs a volunteer, has one assigned, or
+    has been carried out.
+  </p>
+</div>
+
+<nav class="filter-bar" aria-label="Filter bookings by assignment stage">
+  <ul>
+    <% for (const value of views) { %>
+      <li>
+        <a href="/coordinator/bookings<%= value === 'awaiting' ? '' : '?view=' + value %>"<%= view === value ? ' aria-current="true"' : '' %>>
+          <%= viewLabels[value] %> <span class="filter-bar__count">(<%= counts[value] || 0 %>)</span>
+        </a>
+      </li>
+    <% } %>
+  </ul>
+</nav>
+
+<p class="results-count">
+  <% if (pagination.totalItems === 0) { %>
+    No bookings are <%= viewLabels[view].toLowerCase() %>.
+  <% } else { %>
+    Showing <%= pagination.firstOnPage %>&ndash;<%= pagination.lastOnPage %>
+    of <%= pagination.totalItems %> booking<%= pagination.totalItems === 1 ? '' : 's' %>
+    <%= viewLabels[view].toLowerCase() %>.
+  <% } %>
+</p>
+
+<% if (pagination.totalItems === 0) { %>
+  <div class="empty-state">
+    <p>Nothing here yet.</p>
+  </div>
+<% } else { %>
+  <div class="table-wrap">
+    <table class="table--reflow">
+      <caption class="visually-hidden">
+        Bookings <%= viewLabels[view].toLowerCase() %>, most recently confirmed first.
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Reference</th>
+          <th scope="col">Requester</th>
+          <th scope="col">Provider</th>
+          <th scope="col">Requested for</th>
+          <th scope="col">Status</th>
+          <th scope="col">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% for (const booking of bookings) { %>
+          <tr>
+            <td data-label="Reference">
+              <a href="/coordinator/bookings/<%= booking.booking_id %>">#<%= booking.booking_id %></a>
+              <span class="muted text-sm"><%= booking.title %></span>
+            </td>
+            <td data-label="Requester"><%= booking.requester_name %></td>
+            <td data-label="Provider"><%= booking.org_name %></td>
+            <td data-label="Requested for">
+              <time datetime="<%= booking.requestedAttribute %>"><%= booking.requestedLabel %></time>
+            </td>
+            <td data-label="Status">
+              <%- include('../../partials/status-pill', {
+                status: booking.status,
+                statusLabel: booking.statusLabel
+              }) %>
+            </td>
+            <td data-label="Actions">
+              <a href="/coordinator/bookings/<%= booking.booking_id %>">
+                <%= booking.canAssign ? 'Assign' : 'View' %><span class="visually-hidden"> booking #<%= booking.booking_id %></span>
+              </a>
+            </td>
+          </tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+
+  <% if (pagination.totalPages > 1) { %>
+    <nav class="pagination" aria-label="Booking pages">
+      <ul>
+        <li>
+          <% if (pagination.hasPrevious) { %>
+            <a href="/coordinator/bookings<%= buildQueryString({ page: pagination.currentPage - 1 }) %>" rel="prev">
+              Previous<span class="visually-hidden"> page</span>
+            </a>
+          <% } else { %>
+            <span aria-hidden="true">Previous</span>
+          <% } %>
+        </li>
+
+        <% for (let page = 1; page <= pagination.totalPages; page += 1) { %>
+          <li>
+            <% if (page === pagination.currentPage) { %>
+              <a href="/coordinator/bookings<%= buildQueryString({ page }) %>" aria-current="page">
+                <span class="visually-hidden">Page </span><%= page %>
+              </a>
+            <% } else { %>
+              <a href="/coordinator/bookings<%= buildQueryString({ page }) %>">
+                <span class="visually-hidden">Page </span><%= page %>
+              </a>
+            <% } %>
+          </li>
+        <% } %>
+
+        <li>
+          <% if (pagination.hasNext) { %>
+            <a href="/coordinator/bookings<%= buildQueryString({ page: pagination.currentPage + 1 }) %>" rel="next">
+              Next<span class="visually-hidden"> page</span>
+            </a>
+          <% } else { %>
+            <span aria-hidden="true">Next</span>
+          <% } %>
+        </li>
+      </ul>
+    </nav>
+  <% } %>
+<% } %>
+
+<%- include('../../partials/footer') %>

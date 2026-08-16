@@ -1,0 +1,175 @@
+<%- include('../../partials/header') %>
+
+<nav aria-label="Breadcrumb" class="breadcrumb">
+  <a href="/coordinator/bookings">
+    <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-clock"></use></svg>
+    Back to volunteer assignments
+  </a>
+</nav>
+
+<div class="page-head">
+  <p class="cluster">
+    <%- include('../../partials/status-pill', {
+      status: booking.status,
+      statusLabel: booking.statusLabel
+    }) %>
+    <span class="muted text-sm">Booking #<%= booking.booking_id %></span>
+  </p>
+
+  <h1><%= booking.title %></h1>
+
+  <p class="lead"><%= booking.statusExplanation %></p>
+</div>
+
+<div class="grid grid--split">
+  <div>
+    <div class="panel">
+      <h2 class="panel__title">The booking</h2>
+      <dl class="stack">
+        <div>
+          <dt class="text-sm muted">Requester</dt>
+          <dd><%= booking.requester_name %> &middot; <%= booking.requester_email %></dd>
+        </div>
+        <% if (booking.requester_phone) { %>
+          <div>
+            <dt class="text-sm muted">Requester contact</dt>
+            <dd><%= booking.requester_phone %></dd>
+          </div>
+        <% } %>
+        <div>
+          <dt class="text-sm muted">Provider</dt>
+          <dd><%= booking.org_name %></dd>
+        </div>
+        <% if (booking.provider_contact) { %>
+          <div>
+            <dt class="text-sm muted">Provider contact</dt>
+            <dd><%= booking.provider_contact %></dd>
+          </div>
+        <% } %>
+        <div>
+          <dt class="text-sm muted">Requested for</dt>
+          <dd>
+            <time datetime="<%= booking.requestedAttribute %>"><%= booking.requestedLabel %></time>
+          </dd>
+        </div>
+        <% if (booking.location) { %>
+          <div>
+            <dt class="text-sm muted">Location</dt>
+            <dd>
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-map-pin"></use></svg>
+              <%= booking.location %>
+            </dd>
+          </div>
+        <% } %>
+      </dl>
+    </div>
+
+    <% if (booking.volunteer_name) { %>
+      <div class="panel">
+        <h2 class="panel__title">Assigned volunteer</h2>
+        <dl class="stack">
+          <div>
+            <dt class="text-sm muted">Name</dt>
+            <dd><%= booking.volunteer_name %></dd>
+          </div>
+          <div>
+            <dt class="text-sm muted">Contact</dt>
+            <dd><%= booking.volunteer_contact %></dd>
+          </div>
+          <div>
+            <dt class="text-sm muted">Assigned</dt>
+            <dd><%= booking.assignedLabel %></dd>
+          </div>
+          <% if (booking.completedLabel) { %>
+            <div>
+              <dt class="text-sm muted">Completed</dt>
+              <dd><%= booking.completedLabel %></dd>
+            </div>
+          <% } %>
+          <% if (booking.completion_notes) { %>
+            <div>
+              <dt class="text-sm muted">Completion notes</dt>
+              <dd class="notes"><%= booking.completion_notes %></dd>
+            </div>
+          <% } %>
+        </dl>
+      </div>
+    <% } %>
+
+    <div class="panel">
+      <h2 class="panel__title">History</h2>
+
+      <% if (!timelineAvailable) { %>
+        <p class="muted">
+          The history could not be loaded just now. The status above is current and is held
+          separately, so it is unaffected. Reload the page to try again.
+        </p>
+      <% } else if (timeline.length === 0) { %>
+        <p class="muted">Nothing has been recorded against this booking yet.</p>
+      <% } else { %>
+        <ol class="timeline" role="list">
+          <% for (const entry of timeline) { %>
+            <li class="timeline__item">
+              <p class="timeline__label"><%= entry.label %></p>
+              <p class="timeline__meta text-sm muted">
+                <time datetime="<%= entry.occurredAt %>"><%= entry.occurredLabel %></time>
+                <% if (entry.actorName) { %>
+                  &middot; <%= entry.actorName %>
+                <% } %>
+              </p>
+              <% if (entry.detail) { %>
+                <p class="timeline__detail text-sm"><%= entry.detail %></p>
+              <% } %>
+            </li>
+          <% } %>
+        </ol>
+      <% } %>
+    </div>
+  </div>
+
+  <div>
+    <% if (booking.canAssign) { %>
+      <div class="panel">
+        <h2 class="panel__title">Assign a volunteer</h2>
+        <%- include('../../partials/error-summary', { errors }) %>
+        <form method="post" action="/coordinator/bookings/<%= booking.booking_id %>/assign" novalidate>
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+          <%- include('../../partials/field', {
+            name: 'volunteerName',
+            label: 'Volunteer name',
+            value: values.volunteerName,
+            error: errors.volunteerName,
+            autocomplete: 'name',
+            minlength: 2,
+            maxlength: 120,
+          }) %>
+
+          <%- include('../../partials/field', {
+            name: 'volunteerContact',
+            label: 'Volunteer contact',
+            hint: 'A phone number or email the volunteer can be reached on.',
+            value: values.volunteerContact,
+            error: errors.volunteerContact,
+            minlength: 5,
+            maxlength: 120,
+          }) %>
+
+          <button type="submit" class="btn btn--primary">Assign volunteer</button>
+        </form>
+      </div>
+    <% } %>
+
+    <div class="panel">
+      <h2 class="panel__title">What happens next</h2>
+      <ol class="stack text-sm">
+        <li>The provider accepts the request.</li>
+        <li>A coordinator assigns a volunteer assistant.</li>
+        <li>The assistant carries out the booking and it is marked completed.</li>
+      </ol>
+      <p class="text-sm muted">Every step is added to the history on this page.</p>
+    </div>
+  </div>
+</div>
+
+<%- include('../../partials/footer') %>

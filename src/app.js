@@ -14,6 +14,7 @@ const bookingRoutes = require('./routes/bookings');
 const providerBookingRoutes = require('./routes/providerBookings');
 const adminProviderRoutes = require('./routes/adminProviders');
 const adminReportRoutes = require('./routes/adminReports');
+const coordinatorBookingRoutes = require('./routes/coordinatorBookings');
 const sessionMiddleware = require('./middleware/session');
 const { csrfProtection } = require('./middleware/csrf');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
@@ -117,6 +118,7 @@ app.use(bookingRoutes);
 app.use(providerBookingRoutes);
 app.use(adminProviderRoutes);
 app.use(adminReportRoutes);
+app.use(coordinatorBookingRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

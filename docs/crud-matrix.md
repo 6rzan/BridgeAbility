@@ -16,8 +16,8 @@ Data stores: **RDS** (Amazon RDS for MySQL 8) · **DDB** (Amazon DynamoDB) · **
 
 | Store | Create | Read | Update | Delete |
 |---|---|---|---|---|
-| RDS | F-auth (users, providers) · F2 (bookings) · F3 (services) · *live* | F1 (services, providers) · F2 (own bookings) · F3 (own listings) · F4 (incoming queue) · F5 (registration queue) · F6 (status aggregates) · *live* | F2 (cancel) · F3 (edit, withdraw, publish) · F4 (accept/reject) · F5 (approve/reject) · *live* — F7, F8 planned | F3 (delete an unbooked listing) · *live* |
-| DDB | F-auth (sessions) · F2 (timeline events) · F4 (accept/reject events) · *live* | F-auth (sessions) · F2 (booking history) · F4 (booking history) · F6 (completed-bookings report, `GSI-1`) · *live* | F-auth (session touch) · *live* | F-auth (sign-out) · *live* |
+| RDS | F-auth (users, providers) · F2 (bookings) · F3 (services) · F7 (`assignments`) · *live* | F1 (services, providers) · F2 (own bookings) · F3 (own listings) · F4 (incoming queue) · F5 (registration queue) · F6 (status aggregates) · F7 (assignment queue) · *live* | F2 (cancel) · F3 (edit, withdraw, publish) · F4 (accept/reject) · F5 (approve/reject) · F7 (`bookings.status` → `assigned`) · *live* — F8 planned | F3 (delete an unbooked listing) · *live* |
+| DDB | F-auth (sessions) · F2 (timeline events) · F4 (accept/reject events) · F7 (assignment event) · *live* | F-auth (sessions) · F2 (booking history) · F4 (booking history) · F6 (completed-bookings report, `GSI-1`) · F7 (booking history) · *live* | F-auth (session touch) · *live* | F-auth (sign-out) · *live* |
 | S3 | F-media (placeholder illustrations, verification documents) · F3 (presigned PUT) · *live* | F1 (presigned GET) · F3 (own listing images) · F5 (verification document) · *live* | F3 (replace an image) · *live* | F3 (remove an image, delete a listing) · *live* |
 
 "F-auth" is the cross-cutting authentication slice, owned jointly. Every other row has one
@@ -279,9 +279,44 @@ than an import reaching into a file that has not been written.
 
 ---
 
+## F7 — coordinator assigns a volunteer to a confirmed booking (Noor Khalil Abdullah Khaled, TP078880)
+
+| Verb | Store | What | Where |
+|---|---|---|---|
+| Read | RDS | One page of bookings in one of three states — awaiting assignment, assigned, completed | `GET /coordinator/bookings` → `assignmentRepository.findForCoordinator` |
+| Read | RDS | Match count, and the count behind each of the three tabs | `GET /coordinator/bookings` → `countForCoordinator`, `countsByView` |
+| Read | RDS | One booking with its service, provider, requester and assignment (if any) | `GET /coordinator/bookings/:id` → `assignmentRepository.findDetail` |
+| Read | DDB | The whole history of one booking | `GET /coordinator/bookings/:id` → `timelineRepository.listEvents` |
+| Create | RDS | `assignments` row, and `bookings.status` → `assigned` in the same transaction | `POST /coordinator/bookings/:id/assign` → `assignmentRepository.createAssignment` |
+| Create | DDB | `VOLUNTEER_ASSIGNED` timeline event, written only when the assignment actually happened | `POST /coordinator/bookings/:id/assign` → `timelineRepository.appendEvent` |
+
+**No ownership, by design.** Unlike F2/F3/F4, nothing in `assignmentRepository` is keyed on the
+signed-in coordinator's own id — any coordinator may act on any booking, the same model F5 and
+F6 already established for administrators. The schema has no "this coordinator's bookings"
+relationship for a query to filter on; `requireRole('coordinator')` on the router is the whole
+access-control model.
+
+**One file, two functionalities.** F7 (assign) and F8 (log completion) act on the same row —
+one `assignments` per booking — and share the same detail page, so `assignmentRepository.js`,
+`assignmentSchemas.js`, `coordinatorBookingService.js` and `coordinatorBookingController.js` are
+each written once and extended by F8 rather than duplicated. This section and F8's below stay
+separate so attribution at the documentation layer is exact, even though the code is shared.
+
+**Why this is a transaction, not a guarded UPDATE.** F4's accept/reject and F5's approve/reject
+are each one statement — a status flip with nothing else to keep atomic with it. Assigning a
+volunteer is a genuine two-statement compound write: a new `assignments` row, and
+`bookings.status` moving to `assigned`, which must both happen or neither does.
+`createAssignment` runs both inside `withTransaction`, behind `SELECT ... FOR UPDATE` on the
+booking row, the same shape as F3's `deleteUnbookedService`/`setImage`. Two coordinators racing
+on the same booking resolve to whichever gets the lock first; the second finds `status` already
+moved on and reports `not-assignable` without attempting the insert. The `UNIQUE` index on
+`assignments.booking_id` is caught as a backstop behind that lock, not the primary defence,
+so a race the lock somehow missed still reports a clean outcome instead of a 500.
+
+---
+
 ## Planned
 
 | | Owner | Verbs it will add |
 |---|---|---|
-| F7 | Noor Khalil Abdullah Khaled | RDS create (`assignments`), RDS update (`bookings.status`) |
 | F8 | Noor Khalil Abdullah Khaled | RDS update (`assignments.completion_status`), DDB create (timeline event) |
