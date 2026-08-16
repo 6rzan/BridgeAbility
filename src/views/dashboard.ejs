@@ -64,9 +64,20 @@
 
     <div class="panel">
       <h2 class="panel__title">Your tasks</h2>
-      <p class="muted">
-        Role tasks appear here as each part of the platform is enabled for your account.
-      </p>
+      <% if (summary.tasks && summary.tasks.length > 0) { %>
+        <ul class="task-list" role="list">
+          <% for (const task of summary.tasks) { %>
+            <li>
+              <a href="<%= task.href %>"><%= task.label %></a>
+              <p class="text-sm muted"><%= task.description %></p>
+            </li>
+          <% } %>
+        </ul>
+      <% } else { %>
+        <p class="muted">
+          Role tasks appear here as each part of the platform is enabled for your account.
+        </p>
+      <% } %>
     </div>
   </div>
 </div>

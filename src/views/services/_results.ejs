@@ -1,0 +1,72 @@
+<%#
+  The results region: count, listings and pagination.
+
+  Rendered on its own for the enhanced page, which fetches this fragment and swaps it in, and
+  included by services/index.ejs for the full page load. One template, so the JavaScript path
+  and the no-JavaScript path cannot drift apart.
+-%>
+<p class="results-count" id="results-count">
+  <% if (pagination.totalItems === 0) { %>
+    No services found<%= filterSummary ? ' ' + filterSummary : '' %>.
+  <% } else { %>
+    Showing <%= pagination.firstOnPage %>&ndash;<%= pagination.lastOnPage %>
+    of <%= pagination.totalItems %> service<%= pagination.totalItems === 1 ? '' : 's' %><%= filterSummary ? ' ' + filterSummary : '' %>.
+  <% } %>
+</p>
+
+<% if (pagination.totalItems === 0) { %>
+  <div class="empty-state">
+    <p>Nothing matched those filters.</p>
+    <p><a href="/services">Clear all filters</a> to see every available service.</p>
+  </div>
+<% } else { %>
+  <ul class="card-grid" role="list">
+    <% for (const service of services) { %>
+      <%- include('_card', { service }) %>
+    <% } %>
+  </ul>
+
+  <% if (pagination.totalPages > 1) { %>
+    <%#
+      Real links with real hrefs, so pagination works with scripting off, opens in a new tab
+      on middle-click, and is announced as navigation. aria-current marks the page you are on.
+    -%>
+    <nav class="pagination" aria-label="Search results pages">
+      <ul>
+        <li>
+          <% if (pagination.hasPrevious) { %>
+            <a href="/services<%= buildQueryString({ page: pagination.currentPage - 1 }) %>" rel="prev">
+              Previous<span class="visually-hidden"> page</span>
+            </a>
+          <% } else { %>
+            <span aria-hidden="true">Previous</span>
+          <% } %>
+        </li>
+
+        <% for (let page = 1; page <= pagination.totalPages; page += 1) { %>
+          <li>
+            <% if (page === pagination.currentPage) { %>
+              <a href="/services<%= buildQueryString({ page }) %>" aria-current="page">
+                <span class="visually-hidden">Page </span><%= page %>
+              </a>
+            <% } else { %>
+              <a href="/services<%= buildQueryString({ page }) %>">
+                <span class="visually-hidden">Page </span><%= page %>
+              </a>
+            <% } %>
+          </li>
+        <% } %>
+
+        <li>
+          <% if (pagination.hasNext) { %>
+            <a href="/services<%= buildQueryString({ page: pagination.currentPage + 1 }) %>" rel="next">
+              Next<span class="visually-hidden"> page</span>
+            </a>
+          <% } else { %>
+            <span aria-hidden="true">Next</span>
+          <% } %>
+        </li>
+      </ul>
+    </nav>
+  <% } %>
+<% } %>

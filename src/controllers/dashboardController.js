@@ -12,6 +12,9 @@ const ROLE_SUMMARY = {
   requester: {
     heading: 'Requester',
     blurb: 'Search verified listings, send booking requests and follow each one through to completion.',
+    tasks: [
+      { href: '/services', label: 'Find services', description: 'Search verified listings by category, location and price.' },
+    ],
   },
   provider: {
     heading: 'Service provider',

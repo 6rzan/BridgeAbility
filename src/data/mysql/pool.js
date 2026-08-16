@@ -33,6 +33,24 @@ async function query(sql, params = []) {
 }
 
 /**
+ * Run a parameterised query through the driver's text protocol.
+ *
+ * `query()` above uses prepared statements, which is what almost everything should use. This
+ * variant exists for one specific case: a paginated query whose LIMIT and OFFSET are bound
+ * values. mysql2's prepared-statement path and LIMIT placeholders interact badly depending on
+ * the driver version, and pagination failing because of a patch release is not a risk worth
+ * carrying. The text protocol has no such quirk.
+ *
+ * The important part: values are still passed separately and escaped by the driver. This is
+ * not string concatenation, and the rule in CLAUDE.md still holds -- no caller ever builds SQL
+ * by joining user input into a string.
+ */
+async function queryEscaped(sql, params = []) {
+  const [rows] = await pool.query(sql, params);
+  return rows;
+}
+
+/**
  * Run `fn` inside a transaction, committing on success and rolling back on any throw.
  * Used wherever a booking's state changes, so a partial write can never be observed.
  */
@@ -56,4 +74,4 @@ async function ping() {
   await pool.query('SELECT 1');
 }
 
-module.exports = { pool, query, withTransaction, ping };
+module.exports = { pool, query, queryEscaped, withTransaction, ping };
