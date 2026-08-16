@@ -1,0 +1,24 @@
+<%#
+  A booking status, shown the same way everywhere it appears.
+
+  WCAG 2.2 SC 1.4.1: colour is never the only carrier of meaning. Each pill states the status
+  in words and carries a distinct shape as well as a distinct colour, so it survives being
+  read by a screen reader, printed in greyscale, or seen by someone who cannot separate the
+  hues. The pill is not a link and not a control -- it is a label, so it takes no focus.
+
+  Locals: status (one of the six), statusLabel (the words to show).
+-%>
+<%
+  const ICONS = {
+    pending: 'clock',
+    accepted: 'check',
+    rejected: 'error',
+    assigned: 'user',
+    completed: 'check-circle',
+    cancelled: 'slash',
+  };
+-%>
+<span class="status status--<%= status %>">
+  <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-<%= ICONS[status] || 'clock' %>"></use></svg>
+  <%= statusLabel %>
+</span>

@@ -1,0 +1,98 @@
+<%- include('../partials/header') %>
+
+<nav aria-label="Breadcrumb" class="breadcrumb">
+  <a href="/services/<%= service.service_id %>">
+    <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-search"></use></svg>
+    Back to <%= service.title %>
+  </a>
+</nav>
+
+<div class="page-head prose">
+  <h1>Request this service</h1>
+  <p class="lead">
+    Tell <%= service.org_name %> when you need <%= service.title %>. Nothing is confirmed until
+    they accept, and you can cancel while you are waiting.
+  </p>
+</div>
+
+<div class="grid grid--split">
+  <form method="post" action="/bookings" class="panel" novalidate data-validate>
+    <h2 class="panel__title">Booking details</h2>
+
+    <%- include('../partials/error-summary', { errors, heading: 'Check the booking details' }) %>
+
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <input type="hidden" name="serviceId" value="<%= service.service_id %>">
+    <%#
+      One idempotency key per rendering of this form. Submit twice -- a double click, a refresh
+      on the POST, a retry over a dropping mobile connection -- and both submissions carry this
+      same key, so the UNIQUE index on bookings.request_key turns the second into a no-op
+      instead of a second booking the provider has to untangle.
+    -%>
+    <input type="hidden" name="requestKey" value="<%= requestKey %>">
+
+    <%- include('../partials/field', {
+      name: 'requestedDatetime',
+      label: 'When do you need it?',
+      type: 'datetime-local',
+      value: values.requestedDatetime,
+      error: errors.requestedDatetime,
+      hint: 'Malaysian time. Choose the time the service should start.',
+      requiredMessage: 'Choose the date and time you need this service.',
+      min: earliest
+    }) %>
+
+    <%- include('../partials/field', {
+      name: 'notes',
+      label: 'Anything the provider should know',
+      type: 'textarea',
+      value: values.notes,
+      error: errors.notes,
+      required: false,
+      rows: 5,
+      maxlength: 1000,
+      hint: 'Access needs, the exact address, who to ask for on arrival, how long you need.'
+    }) %>
+
+    <p class="cluster">
+      <button type="submit" class="btn btn--primary">Send request</button>
+      <a href="/services/<%= service.service_id %>">Cancel</a>
+    </p>
+  </form>
+
+  <div>
+    <div class="panel">
+      <h2 class="panel__title">You are requesting</h2>
+      <p class="stack">
+        <strong><%= service.title %></strong>
+        <span class="muted"><%= service.org_name %></span>
+      </p>
+      <dl class="stack">
+        <div>
+          <dt class="text-sm muted">Price</dt>
+          <dd>RM <%= Number(service.price).toFixed(2) %></dd>
+        </div>
+        <div>
+          <dt class="text-sm muted">Location</dt>
+          <dd><%= service.location %></dd>
+        </div>
+        <div>
+          <dt class="text-sm muted">Category</dt>
+          <dd><%= service.category %></dd>
+        </div>
+      </dl>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel__title">What happens next</h2>
+      <ol class="stack text-sm">
+        <li>Your request goes to <%= service.org_name %> with the status Awaiting provider.</li>
+        <li>They accept or decline it, and the status changes here.</li>
+        <li>If it is accepted, a coordinator assigns a volunteer assistant.</li>
+        <li>Every step is recorded on the booking, with the date it happened.</li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>
