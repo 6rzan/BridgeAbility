@@ -97,8 +97,14 @@ Both are owed entries in `docs/defect-log.md` when that file gets written.
   the zod refinement that turned a malformed date into a 500, the `min` the field partial
   ignored, and the honest limitation that `express-rate-limit` counts per process, so the
   login limiter weakens once the environment scales past one instance.
+- **`README.md` is now written** and the demo passwords were reset. The originals were
+  unrecoverable (bcrypt hashes, never written down), so `db/patches/003-demo-account-passwords.sql`
+  resets the four `@bridgeability.demo` roles to values published in the README —
+  `bridge-<role>-4d9d87`. The patch is idempotent and runs on every deploy from the instance.
+  F2 was then verified live end to end as `requester@bridgeability.demo`: submit, detail with the
+  DynamoDB timeline, status filter, and cancel (which appended a `BOOKING_CANCELLED` event).
 - Still unwritten: `docs/workload-matrix.md`, `test-plan.md`, `deployment-runbook.md`,
-  `references.md`, `docs/demo/*`, `README.md`, `scripts/package-submission.js`, `deploy.sh`,
+  `references.md`, `docs/demo/*`, `scripts/package-submission.js`, `deploy.sh`,
   `render-matrix.js`, `spec.md`, `tasks.md`.
 
 ## Two traps in this environment
