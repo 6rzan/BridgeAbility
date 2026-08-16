@@ -16,8 +16,8 @@ Data stores: **RDS** (Amazon RDS for MySQL 8) · **DDB** (Amazon DynamoDB) · **
 
 | Store | Create | Read | Update | Delete |
 |---|---|---|---|---|
-| RDS | F-auth (users, providers) · F2 (bookings) · F3 (services) · F7 (`assignments`) · *live* | F1 (services, providers) · F2 (own bookings) · F3 (own listings) · F4 (incoming queue) · F5 (registration queue) · F6 (status aggregates) · F7 (assignment queue) · *live* | F2 (cancel) · F3 (edit, withdraw, publish) · F4 (accept/reject) · F5 (approve/reject) · F7 (`bookings.status` → `assigned`) · *live* — F8 planned | F3 (delete an unbooked listing) · *live* |
-| DDB | F-auth (sessions) · F2 (timeline events) · F4 (accept/reject events) · F7 (assignment event) · *live* | F-auth (sessions) · F2 (booking history) · F4 (booking history) · F6 (completed-bookings report, `GSI-1`) · F7 (booking history) · *live* | F-auth (session touch) · *live* | F-auth (sign-out) · *live* |
+| RDS | F-auth (users, providers) · F2 (bookings) · F3 (services) · F7 (`assignments`) · *live* | F1 (services, providers) · F2 (own bookings) · F3 (own listings) · F4 (incoming queue) · F5 (registration queue) · F6 (status aggregates) · F7 (assignment queue) · *live* | F2 (cancel) · F3 (edit, withdraw, publish) · F4 (accept/reject) · F5 (approve/reject) · F7 (`bookings.status` → `assigned`) · F8 (`assignments.completion_status`, `bookings.status` → `completed`) · *live* | F3 (delete an unbooked listing) · *live* |
+| DDB | F-auth (sessions) · F2 (timeline events) · F4 (accept/reject events) · F7 (assignment event) · F8 (completed event) · *live* | F-auth (sessions) · F2 (booking history) · F4 (booking history) · F6 (completed-bookings report, `GSI-1`) · F7 (booking history) · *live* | F-auth (session touch) · *live* | F-auth (sign-out) · *live* |
 | S3 | F-media (placeholder illustrations, verification documents) · F3 (presigned PUT) · *live* | F1 (presigned GET) · F3 (own listing images) · F5 (verification document) · *live* | F3 (replace an image) · *live* | F3 (remove an image, delete a listing) · *live* |
 
 "F-auth" is the cross-cutting authentication slice, owned jointly. Every other row has one
@@ -315,8 +315,31 @@ so a race the lock somehow missed still reports a clean outcome instead of a 500
 
 ---
 
-## Planned
+## F8 — coordinator updates and logs completion status (Noor Khalil Abdullah Khaled, TP078880)
 
-| | Owner | Verbs it will add |
-|---|---|---|
-| F8 | Noor Khalil Abdullah Khaled | RDS update (`assignments.completion_status`), DDB create (timeline event) |
+| Verb | Store | What | Where |
+|---|---|---|---|
+| Update | RDS | `assignments.completion_status`, `completion_notes`, `completed_at`, guarded on the assignment not already being `completed` | `POST /coordinator/bookings/:id/completion` → `assignmentRepository.updateCompletion` |
+| Update | RDS | `bookings.status` → `completed`, same transaction, only when the new completion status is `completed` | `POST /coordinator/bookings/:id/completion` → `assignmentRepository.updateCompletion` |
+| Create | DDB | `BOOKING_COMPLETED` timeline event, written only when the new status is `completed` | `POST /coordinator/bookings/:id/completion` → `timelineRepository.appendEvent` |
+
+**Shares F7's files.** `assignmentRepository.js`, `assignmentSchemas.js`,
+`coordinatorBookingService.js` and `coordinatorBookingController.js` are the same files F7
+introduced, extended here rather than duplicated — see F7's "one file, two functionalities"
+note. The one new file is `tests/unit/coordinator-completions.test.js`.
+
+**`completed` is terminal; `pending` and `in_progress` are not.** Once an assignment reaches
+`completed`, `updateCompletion`'s own transaction refuses to move it anywhere else — the same
+"no further change accepted" rule as F2's `cancelPending` and F4's `setProviderDecision`, just
+enforced inside a transaction because the compound write (the assignment row and
+`bookings.status` together) is what has to stay atomic, not the check alone. `pending` and
+`in_progress` may move freely either direction, which covers an ordinary mis-click correction. A
+fuller forward-only state machine across all three statuses was considered and rejected as an
+unrequested stretch feature, per this project's own "no stretch features" rule.
+
+**Why the timeline event is conditional, not automatic.** `timelineRepository.EVENTS` has no
+`IN_PROGRESS` entry and none is added here — F2's event vocabulary is deliberately closed to
+milestones a requester would want to see, not every internal status edit. Only the transition
+that actually finishes a booking is worth a history line.
+
+All eight functionalities are implemented, deployed and live.

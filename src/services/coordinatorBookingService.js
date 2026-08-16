@@ -129,9 +129,50 @@ async function assign({ bookingId, actor, volunteerName, volunteerContact }) {
   return { outcome: 'assigned' };
 }
 
+/**
+ * Record how an assignment finished (F8).
+ *
+ * The guard is updateCompletion's own transaction (see assignmentRepository): a completed
+ * assignment cannot be moved anywhere else, regardless of what a stale form submits. Only a
+ * transition that lands on 'completed' writes a timeline event -- 'pending' and 'in_progress'
+ * are ordinary corrections, not milestones worth a history line.
+ */
+async function updateCompletion({ bookingId, actor, completionStatus, completionNotes }) {
+  const booking = await assignmentRepository.findDetail(bookingId);
+
+  if (!booking || !booking.assignment_id) {
+    return { outcome: 'not-found' };
+  }
+
+  const result = await assignmentRepository.updateCompletion(bookingId, {
+    completionStatus,
+    completionNotes,
+  });
+
+  if (result.outcome === 'already-completed') {
+    return { outcome: 'already-completed' };
+  }
+
+  if (completionStatus === 'completed') {
+    await bookingService.appendEventSafely({
+      bookingId,
+      event: timelineRepository.EVENTS.COMPLETED,
+      status: 'completed',
+      providerId: booking.provider_id,
+      actorId: actor.id,
+      actorRole: 'coordinator',
+      actorName: actor.name,
+      detail: completionNotes,
+    });
+  }
+
+  return { outcome: completionStatus };
+}
+
 module.exports = {
   listQueue,
   findDetail,
+  updateCompletion,
   assign,
   decorate,
 };

@@ -2,11 +2,12 @@
 
 const coordinatorBookingService = require('../services/coordinatorBookingService');
 const assignmentRepository = require('../data/mysql/assignmentRepository');
-const { assignmentCreateSchema } = require('../validation/assignmentSchemas');
+const { assignmentCreateSchema, completionUpdateSchema, COMPLETION_LABELS } = require('../validation/assignmentSchemas');
 const { fieldErrors } = require('../validation/authSchemas');
 
 /**
  * F7 -- a coordinator assigns a volunteer to a confirmed booking.
+ * F8 -- a coordinator updates and logs how that assignment finished.
  *
  * Every route below is mounted behind requireRole('coordinator'). There is no per-row
  * ownership check anywhere here -- any coordinator may act on any booking, the same model F5
@@ -74,7 +75,29 @@ async function getQueue(req, res, next) {
   }
 }
 
-/** GET /coordinator/bookings/:id -- one booking, its history, and the assign form if it applies. */
+/**
+ * Everything the detail template needs, with sensible defaults for both forms it may show. Used
+ * by the plain GET and by every 422 re-render, so the two never drift apart.
+ */
+function detailViewModel(result, overrides = {}) {
+  return {
+    title: `Booking #${result.booking.booking_id}`,
+    booking: result.booking,
+    timeline: result.timeline,
+    timelineAvailable: result.timelineAvailable,
+    values: { volunteerName: '', volunteerContact: '' },
+    errors: {},
+    completionValues: {
+      completionStatus: result.booking.completion_status || 'pending',
+      completionNotes: result.booking.completion_notes || '',
+    },
+    completionErrors: {},
+    completionLabels: COMPLETION_LABELS,
+    ...overrides,
+  };
+}
+
+/** GET /coordinator/bookings/:id -- one booking, its history, and whichever form applies. */
 async function getBookingDetail(req, res, next) {
   try {
     const bookingId = parseBookingId(req.params.id);
@@ -83,14 +106,7 @@ async function getBookingDetail(req, res, next) {
     const result = await coordinatorBookingService.findDetail(bookingId);
     if (!result) return next();
 
-    return res.render('coordinator/bookings/detail', {
-      title: `Booking #${result.booking.booking_id}`,
-      booking: result.booking,
-      timeline: result.timeline,
-      timelineAvailable: result.timelineAvailable,
-      values: { volunteerName: '', volunteerContact: '' },
-      errors: {},
-    });
+    return res.render('coordinator/bookings/detail', detailViewModel(result));
   } catch (error) {
     return next(error);
   }
@@ -108,17 +124,13 @@ async function postAssign(req, res, next) {
       const result = await coordinatorBookingService.findDetail(bookingId);
       if (!result) return next();
 
-      return res.status(422).render('coordinator/bookings/detail', {
-        title: `Booking #${result.booking.booking_id}`,
-        booking: result.booking,
-        timeline: result.timeline,
-        timelineAvailable: result.timelineAvailable,
+      return res.status(422).render('coordinator/bookings/detail', detailViewModel(result, {
         values: {
           volunteerName: req.body.volunteerName || '',
           volunteerContact: req.body.volunteerContact || '',
         },
         errors: fieldErrors(parsed.error),
-      });
+      }));
     }
 
     const actor = { id: req.session.user.id, name: req.session.user.name };
@@ -145,10 +157,59 @@ async function postAssign(req, res, next) {
   }
 }
 
+/** POST /coordinator/bookings/:id/completion -- F8: log how the assignment went. */
+async function postUpdateCompletion(req, res, next) {
+  try {
+    const bookingId = parseBookingId(req.params.id);
+    if (!bookingId) return next();
+
+    const parsed = completionUpdateSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+      const result = await coordinatorBookingService.findDetail(bookingId);
+      if (!result) return next();
+
+      return res.status(422).render('coordinator/bookings/detail', detailViewModel(result, {
+        completionValues: {
+          completionStatus: req.body.completionStatus || 'pending',
+          completionNotes: req.body.completionNotes || '',
+        },
+        completionErrors: fieldErrors(parsed.error),
+      }));
+    }
+
+    const actor = { id: req.session.user.id, name: req.session.user.name };
+    const result = await coordinatorBookingService.updateCompletion({
+      bookingId,
+      actor,
+      ...parsed.data,
+    });
+
+    if (result.outcome === 'not-found') return next();
+
+    if (result.outcome === 'already-completed') {
+      req.session.flash = {
+        type: 'error',
+        message: 'This booking was already marked completed -- no change was made.',
+      };
+      return res.redirect(`/coordinator/bookings/${bookingId}`);
+    }
+
+    req.session.flash = {
+      type: 'success',
+      message: `Marked ${COMPLETION_LABELS[result.outcome].toLowerCase()}.`,
+    };
+    return res.redirect(`/coordinator/bookings/${bookingId}`);
+  } catch (error) {
+    return next(error);
+  }
+}
+
 module.exports = {
   getQueue,
   getBookingDetail,
   postAssign,
+  postUpdateCompletion,
   parseBookingId,
   parseView,
   parsePage,
