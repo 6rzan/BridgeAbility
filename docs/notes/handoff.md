@@ -7,10 +7,22 @@ Working note, not a deliverable. Delete before packaging the submission.
 | | |
 |---|---|
 | Live URL | `http://bridgeability-env.eba-ucukykqf.us-east-1.elasticbeanstalk.com` |
-| `main` | `6719fa2` — pushed, deployed, verified in a browser |
-| Current branch | `feat/f2-requester-bookings` — F2 **complete**, see below |
+| `main` | `791e4da` — pushed, deployed (`app-791e`), verified in a browser. Env Ready/Green |
+| Working tree | clean |
 | Unit tests | 91 passing (`npm test`) |
-| Phase | C — functionalities. F-auth, F1 and F2 shipped; F3–F8 not started |
+| Phase | C — functionalities. F-auth, F1 and **F2 shipped and verified live**; F3–F8 not started |
+
+## Standing instructions from the user
+
+- **Commit and push directly to `main`.** The user dropped the branch-per-functionality flow
+  for their own commits (2026-08-16). No more `feat/...` branch + `--no-ff` merge — commit on
+  `main`, `git push origin main`. Still keep: one explicit `--author "Taha Fahd
+  <tahafahd40@gmail.com>"` on F1/F2 feature commits (no co-author trailers); co-author trailers
+  listing all four **only** on genuinely shared cross-cutting work (README, docs, layout);
+  never force-push `main`.
+- **After every finished unit of work: commit, push, redeploy.**
+- Run `bash scripts/secret-scan.sh` *after* `git add`, never before — it only scans tracked
+  files, so run early it misses the new file you are about to commit.
 
 Deploy is `eb deploy` with the CLI on PATH:
 
@@ -19,99 +31,84 @@ export PATH="$PATH:/c/Users/tahaf/AppData/Roaming/Python/Python312/Scripts:/c/Pr
 eb deploy
 ```
 
-Standing instruction from the user: **after every finished unit of work, commit, push and
-redeploy.** Run `bash scripts/secret-scan.sh` *after* `git add`, never before — it only scans
-tracked files, so run early it misses exactly the new file you are about to commit.
-
 ## Shipped and verified this session
 
-Both were real defects found by opening the deployed site, not by reading code.
+1. **F2 — submit a booking request and track its status** (`cf9c4ac`, merged `9f47d2f`).
+   Full vertical slice, verified end to end on the live URL as `requester@bridgeability.demo`:
+   submit → detail page with the DynamoDB timeline → `?status=` filter with live counts →
+   cancel (guarded MySQL UPDATE + a `BOOKING_CANCELLED` timeline event). The KL wall-clock
+   conversion is correct live — the typed wall time is preserved and `created_at` (UTC) is
+   shifted +8h for display.
+2. **Two defects found by the new tests** — a malformed date returned HTTP 500 instead of 422
+   (zod ran a `.refine()` past a failed `.regex()`; fixed with a `superRefine` that re-tests
+   the format and returns early), and `partials/field.ejs` silently ignored the `min` it was
+   passed (now supports `min`/`max`, guarded on `!= null`).
+3. **`README.md` written** (`3d720d5`, cross-cutting, four co-authors). Cloud-first; documents
+   the deployed platform, architecture, security, accessibility, seed data and deploy/test flow.
+4. **Demo passwords** — the originals were unrecoverable (bcrypt-only, never written down), so
+   they were reset via `db/patches/003-demo-account-passwords.sql`. As of `791e4da` each
+   password is the **TP number of the role's owner**, published in the README:
 
-1. **Stale CSS after every deploy** (`1441776`). Static files were served for an hour under
-   fixed URLs, so for an hour after each deploy a returning visitor got new HTML against the
-   cached old stylesheet — the catalogue rendered as an unstyled list. `src/lib/assetVersion.js`
-   puts a sha256 of the file contents in the URL; assets are now `immutable` for a year and
-   rendered HTML is `no-store`. Verified live: `main.css?v=ea36ef45bc`, card grid painting on a
-   first visit.
-2. **Interpreter illustration** (`6719fa2`). At card size the drawing collapsed into a raised
-   middle finger, and its alt text promised two hands that were not there. Redrawn as a person
-   signing with both hands raised, checked at 440/300/200px. Patch `002` moves the alt text with
-   it. The seeder had the underlying bug — it skipped any key that already existed, so the fix
-   could never have reached the bucket; it now compares a sha256 stored on the object.
+   | Role | Owner | Email | Password |
+   |---|---|---|---|
+   | Requester | Taha | `requester@bridgeability.demo` | `tp078281` |
+   | Provider | Abubaker | `provider@bridgeability.demo` | `tp078003` |
+   | Admin | Lama | `admin@bridgeability.demo` | `tp078792` |
+   | Coordinator | Noor | `coordinator@bridgeability.demo` | `tp078880` |
 
-## F2 — shipped
+   The patch updates only `@bridgeability.demo` rows, is idempotent, and runs on every deploy
+   from the instance (the only place with a route to the private RDS). Log line to confirm a
+   deploy applied it: `patches/003-demo-account-passwords.sql: 4 applied`.
+   Note: these are 8 chars, under the app's 12-char *registration* floor. Fine here — the patch
+   writes hashes directly and sign-in has no length rule — but a person can't set one this short
+   through the sign-up form. Pad to e.g. `tp078281-demo` if that inconsistency matters on camera.
 
-The whole slice is on the branch as one authored commit: route → controller → service → data
-access → views → tests → `docs/crud-matrix.md`.
+## Next: F3–F8
 
-- `src/validation/bookingSchemas.js` — includes the timezone fix worth knowing about. The
-  requester types Malaysian wall-clock time; the instance runs UTC. Comparing them directly is
-  wrong by eight hours, so both sides convert to a KL wall-clock reading (`wallClockEpoch`,
-  `nowWallClockEpoch`). `formatWallClock` / `toKualaLumpur` do the same for display, and the
-  two conversions are deliberately different: a MySQL DATETIME is already a wall clock and is
-  read straight back, while a DynamoDB `occurredAt` is a real instant and is shifted first.
-  Good viva material.
-- `src/data/mysql/bookingRepository.js` — every query keyed on `requester_id`; no
-  fetch-by-id-alone function exists. `cancelPending` guards on `status = 'pending'` inside the
-  UPDATE rather than read-then-write.
-- `src/data/dynamo/timelineRepository.js` — `PK BOOKING#<id>`, `SK <ISO>#<event>`, GSI-1/GSI-2
-  keys populated. Header comment explains why history lives in DynamoDB and state in MySQL.
-- `src/services/bookingService.js` — MySQL commits first, DynamoDB appended after, failure
-  logged as a greppable reconciliation line rather than failing the user's action.
-- `src/controllers/bookingController.js`, `src/routes/bookings.js` — router mounts
-  `requireAuth` then `requireRole('requester')`.
-- `src/views/bookings/{new,index,detail}.ejs`, `partials/status-pill.ejs`, four icons.
-  The list is a `.table--reflow` so it stacks instead of scrolling sideways; the status filter
-  is a row of links, so every filter is a real URL and needs no scripting.
-- `tests/unit/booking-flow.test.js` — 25 tests: the KL clock, submission validation, the list
-  filter, the status vocabulary, pagination clamping, `parsePage`, `buildQueryString`.
+Same vertical-slice shape as F1/F2: route → controller → service → data access → view → test →
+`docs/crud-matrix.md` entry. The `bookings` table, `assignments` table, the DynamoDB timeline
+(`appendEvent` with the `EVENTS` map) and `status-pill.ejs` already exist and are what F4/F7/F8
+build on.
 
-### Two real defects found while finishing it
+- **F3/F4 — Abubaker (provider).** F3 create/manage listings (RDS CRUD on `services`, S3
+  presigned PUT for images); F4 accept/reject/update bookings (RDS update `bookings.status`,
+  DynamoDB `BOOKING_ACCEPTED`/`REJECTED` events). Deploy after F4 → Checkpoint 3.
+- **F5/F6 — Lama (admin).** F5 approve/reject provider registrations (RDS update
+  `providers.status`); F6 system-wide reports (RDS aggregates, DynamoDB GSI-1 query on the
+  timeline).
+- **F7/F8 — Noor (coordinator).** F7 assign a volunteer to a confirmed booking (RDS create
+  `assignments`, update `bookings.status`); F8 update/log completion (RDS update
+  `assignments.completion_status`, DynamoDB `VOLUNTEER_ASSIGNED`/`BOOKING_COMPLETED` events).
+  Deploy after F8 → Checkpoint 3.
 
-Both are owed entries in `docs/defect-log.md` when that file gets written.
-
-1. **A malformed date crashed `POST /bookings` with a 500.** Zod runs a `.refine()` even after
-   the `.regex()` before it has failed, so `requestedDatetime=2026-08-20` — no `T`, no time —
-   reached `wallClockEpoch`, which splits on `T`, got `undefined` and threw. An ordinary
-   invalid form became a server error. Now a `superRefine` that re-tests the format first and
-   returns early, leaving the regex's own message to stand. Caught by a unit test, not by
-   reading the code.
-2. **`partials/field.ejs` silently ignored `min`.** `new.ejs` had been passing
-   `min: earliest` since it was written and it went nowhere, so the browser's own date picker
-   would happily offer a past time. `min`/`max` are now supported, tested with `!= null` so a
-   legitimate `min` of `0` on a future number field cannot vanish the same way.
-
-## After F2
-
-- **F3/F4 Abubaker, F5/F6 Lama, F7/F8 Noor.** Branch per functionality, one explicit `--author`
-  each, no co-author trailers. Deploy after F4 and after F8 → Checkpoint 3.
-- Phases D–G unchanged from the plan file: hardening, mock viva 1, tests against the deployed
-  URL, 2-AZ + RDS Multi-AZ, study kit, mock viva 2.
+Each owner commits with their own `--author`. Phases D–G unchanged: hardening, mock viva 1,
+integration tests against the deployed URL, 2-AZ + RDS Multi-AZ, study kit, mock viva 2.
 
 ## Owed, deliberately deferred
 
 - **320px reflow check** — `resize_window` to 320 left `innerWidth` at 1960 (Chrome's minimum
   window width plus DPI scaling). Needs device emulation or a real narrow window. Phase E.
-- **`docs/defect-log.md` does not exist yet.** Six real entries are already owed: the
+- **`docs/defect-log.md` does not exist yet.** Six real entries owed: the
   `upgrade-insecure-requests` CSP defect, the stale-CSS defect, the interpreter illustration,
   the zod refinement that turned a malformed date into a 500, the `min` the field partial
-  ignored, and the honest limitation that `express-rate-limit` counts per process, so the
-  login limiter weakens once the environment scales past one instance.
-- **`README.md` is now written** and the demo passwords were reset. The originals were
-  unrecoverable (bcrypt hashes, never written down), so `db/patches/003-demo-account-passwords.sql`
-  resets the four `@bridgeability.demo` roles to values published in the README —
-  `bridge-<role>-4d9d87`. The patch is idempotent and runs on every deploy from the instance.
-  F2 was then verified live end to end as `requester@bridgeability.demo`: submit, detail with the
-  DynamoDB timeline, status filter, and cancel (which appended a `BOOKING_CANCELLED` event).
+  ignored, and the honest limitation that `express-rate-limit` counts per process so the login
+  limiter weakens once the environment scales past one instance.
 - Still unwritten: `docs/workload-matrix.md`, `test-plan.md`, `deployment-runbook.md`,
   `references.md`, `docs/demo/*`, `scripts/package-submission.js`, `deploy.sh`,
   `render-matrix.js`, `spec.md`, `tasks.md`.
 
-## Two traps in this environment
+## Traps in this environment
 
-- Writing files with a bash heredoc sometimes fails — the contents get replayed unquoted and
-  `=>` acts as a shell redirect, creating 0-byte files with names like `row.location)`. It
-  swallowed two files this session. Prefer the Write tool for new source files, and check
-  `git status` before every commit.
-- `curl` ignores CSP. The CSP defect shipped because it was checked with curl. Anything about
-  rendering has to be checked in a real browser.
+- **Heredoc/redirect trap.** Writing files with a bash heredoc sometimes replays the contents
+  unquoted, and `=>` acts as a shell redirect, creating 0-byte junk files with names like `'`,
+  `span`, `` ` ``. Two were cleaned up this session. Prefer the Write tool for new files, and
+  check `git status` before every commit.
+- **`curl` ignores CSP.** Anything about rendering has to be checked in a real browser, on the
+  deployed URL — a past CSP defect shipped because it was checked with curl.
+- **Signing in.** The assistant cannot type a password into a login field (hard rule), even a
+  demo one. The user has to sign in; the assistant drives the rest afterward.
+- **Screenshot vs viewport scaling.** The browser screenshot is ~1568px wide but the page
+  viewport is ~1910px, so coordinate clicks are off. Use `find` + a `ref`-based click for
+  buttons (that is why the cancel button took a ref click, not a coordinate click).
+- **RDS is private.** No route from a laptop. Migrations, seeding and the password patch run
+  from the Beanstalk instance (`.ebextensions/01-migrate.config`, `leader_only`) on each deploy.
