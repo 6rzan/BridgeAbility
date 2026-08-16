@@ -22,6 +22,8 @@
  * Safe to run on every deploy: an object that is already present is skipped.
  */
 
+const crypto = require('node:crypto');
+
 const {
   S3Client,
   HeadObjectCommand,
@@ -60,10 +62,20 @@ const ILLUSTRATIONS = {
     <path d="M120 112 v56 l-52 30 h64" stroke="${PRIMARY}"/>
     <path d="M96 198 h72" stroke="${PRIMARY}"/>`),
 
-  // Two hands mid-sign, with a speech mark to say that meaning is being carried.
-  interpreter: svg(`    <path d="M176 196 v-44 a10 10 0 0 1 20 0 v-38 a10 10 0 0 1 20 0 v34"/>
-    <path d="M216 148 a10 10 0 0 1 20 0 v14"/>
-    <path d="M236 162 a10 10 0 0 1 20 0 v34 a34 34 0 0 1 -34 34 h-12 a34 34 0 0 1 -34 -34"/>
+  // A person signing with both hands raised, beside a speech bubble.
+  //
+  // The first attempt at this drew a hand on its own with the digits stacked from the palm.
+  // On a card at catalogue size it collapsed into one raised finger, which is a rude gesture
+  // on a page about accessibility services and did not match its own alt text either. A whole
+  // upper body carrying both hands cannot be misread that way, and no single part of it has
+  // to survive being shrunk.
+  interpreter: svg(`    <circle cx="196" cy="70" r="22"/>
+    <path d="M196 92 v26"/>
+    <path d="M150 230 v-68 a46 46 0 0 1 92 0 v68z"/>
+    <path d="M162 132 l-30 18 l-4 -42" stroke="${PRIMARY}"/>
+    <path d="M230 132 l30 18 l4 -42" stroke="${PRIMARY}"/>
+    <circle cx="128" cy="100" r="11" stroke="${PRIMARY}"/>
+    <circle cx="264" cy="100" r="11" stroke="${PRIMARY}"/>
     <path d="M300 96 h64 a12 12 0 0 1 12 12 v40 a12 12 0 0 1 -12 12 h-38 l-20 20 v-20 h-6 a12 12 0 0 1 -12 -12 v-40 a12 12 0 0 1 12 -12z" stroke="${PRIMARY}"/>
     <path d="M318 122 h28 M318 140 h18" stroke="${PRIMARY}"/>`),
 
@@ -90,13 +102,28 @@ const ILLUSTRATIONS = {
     <path d="M162 128 h108 M162 156 h156 M162 184 h84" stroke="${PRIMARY}"/>`),
 };
 
-async function objectExists(key) {
+/**
+ * "Already uploaded" has to mean "already uploaded *this* drawing".
+ *
+ * The first version of this skipped any key that existed at all. That is wrong the moment an
+ * illustration is corrected -- and one was, because the interpreter drawing collapsed into a
+ * rude gesture at card size -- since the fix would sit in the repository and never reach the
+ * bucket. Each object carries a sha256 of the markup that produced it, so a changed drawing
+ * is re-uploaded and an unchanged one still costs a single HeadObject.
+ */
+function digestOf(markup) {
+  return crypto.createHash('sha256').update(markup).digest('hex');
+}
+
+/** The digest recorded on the stored object, '' if it predates this scheme, null if absent. */
+async function storedDigest(key) {
   try {
-    await client.send(new HeadObjectCommand({ Bucket: BUCKET, Key: key }));
-    return true;
+    const head = await client.send(new HeadObjectCommand({ Bucket: BUCKET, Key: key }));
+    // The SDK lower-cases user metadata keys on the way back out.
+    return head.Metadata?.['content-sha256'] ?? '';
   } catch (error) {
     if (error.name === 'NotFound' || error.$metadata?.httpStatusCode === 404) {
-      return false;
+      return null;
     }
     throw error;
   }
@@ -108,12 +135,15 @@ async function main() {
   }
 
   let uploaded = 0;
+  let replaced = 0;
   let skipped = 0;
 
   for (const [category, markup] of Object.entries(ILLUSTRATIONS)) {
     const key = `services/placeholder-${category}.svg`;
+    const digest = digestOf(markup);
+    const existing = await storedDigest(key);
 
-    if (await objectExists(key)) {
+    if (existing === digest) {
       skipped += 1;
       continue;
     }
@@ -126,12 +156,17 @@ async function main() {
       // an SVG without it is offered as a download instead of rendering.
       ContentType: 'image/svg+xml',
       CacheControl: 'public, max-age=86400',
+      Metadata: { 'content-sha256': digest },
     }));
 
-    uploaded += 1;
+    if (existing === null) {
+      uploaded += 1;
+    } else {
+      replaced += 1;
+    }
   }
 
-  console.log(`[seed-media] ${uploaded} uploaded, ${skipped} already present`);
+  console.log(`[seed-media] ${uploaded} uploaded, ${replaced} replaced, ${skipped} unchanged`);
 }
 
 if (require.main === module) {
