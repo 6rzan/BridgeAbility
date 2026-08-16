@@ -38,6 +38,7 @@
       rows="<%= locals.rows || 4 %>"
       <% if (required) { %>required<% } %>
       <% if (locals.maxlength) { %>maxlength="<%= locals.maxlength %>"<% } %>
+      <% if (locals.requiredMessage) { %>data-required-message="<%= locals.requiredMessage %>"<% } %>
       <% if (error) { %>aria-invalid="true"<% } %>
       <% if (describedBy) { %>aria-describedby="<%= describedBy %>"<% } %>
     ><%= value %></textarea>
@@ -53,6 +54,7 @@
       <% if (locals.inputmode) { %>inputmode="<%= locals.inputmode %>"<% } %>
       <% if (locals.minlength) { %>minlength="<%= locals.minlength %>"<% } %>
       <% if (locals.maxlength) { %>maxlength="<%= locals.maxlength %>"<% } %>
+      <% if (locals.requiredMessage) { %>data-required-message="<%= locals.requiredMessage %>"<% } %>
       <% if (error) { %>aria-invalid="true"<% } %>
       <% if (describedBy) { %>aria-describedby="<%= describedBy %>"<% } %>
     >

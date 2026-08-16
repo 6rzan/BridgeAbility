@@ -51,7 +51,10 @@
     var label = control.closest('.field').querySelector('label').textContent.trim();
 
     if (control.required && value === '') {
-      return 'Enter ' + label.replace(/\s*\(optional\)$/, '').toLowerCase() + '.';
+      // A field can author its own wording where the label does not make a readable
+      // sentence -- "Enter your confirm password" being the obvious one.
+      return control.getAttribute('data-required-message')
+        || 'Enter your ' + label.replace(/\s*\(optional\)$/, '').toLowerCase() + '.';
     }
 
     if (value === '') {

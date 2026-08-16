@@ -22,7 +22,9 @@ const PLACEHOLDERS = {
   S3_BUCKET: 'unit-test',
   DDB_TIMELINE_TABLE: 'unit-test-timeline',
   DDB_SESSIONS_TABLE: 'unit-test-sessions',
-  SESSION_SECRET: 'unit-test-session-secret-value-32-chars-min',
+  // The word 'placeholder' is load-bearing: scripts/secret-scan.sh treats it as proof of
+  // intent, so a real secret pasted here would still trip the scan.
+  SESSION_SECRET: 'unit-test-placeholder-not-a-real-secret-value',
 };
 
 for (const [key, value] of Object.entries(PLACEHOLDERS)) {

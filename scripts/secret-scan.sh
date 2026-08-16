@@ -55,8 +55,11 @@ if [ -f .env.example ]; then
 fi
 
 # --- 6. Database password assigned to a literal ---------------------------------
+# Values containing 'placeholder' are exempt: test fixtures need a syntactically valid
+# secret. The word has to be written deliberately, and the AWS key checks above are not
+# exempted by it, so a real credential still trips the scan.
 hits=$(echo "$files" | xargs grep -nE '(DB_PASSWORD|SESSION_SECRET)[[:space:]]*[:=][[:space:]]*["'"'"'][^"'"'"'{$]{12,}' 2>/dev/null \
-  | grep -v -E '\.env\.example|replace-with|your_db_password' || true)
+  | grep -v -E '\.env\.example|replace-with|your_db_password|placeholder' || true)
 [ -n "$hits" ] && report "HARDCODED SECRET LITERAL" "$hits"
 
 if [ "$fail" -eq 0 ]; then
