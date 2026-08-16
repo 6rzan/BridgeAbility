@@ -1,0 +1,9 @@
+[
+  {
+    "AllowedOrigins": ["http://bridgeability-env.eba-ucukykqf.us-east-1.elasticbeanstalk.com"],
+    "AllowedMethods": ["PUT"],
+    "AllowedHeaders": ["content-type"],
+    "ExposeHeaders": [],
+    "MaxAgeSeconds": 3000
+  }
+]
