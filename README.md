@@ -85,12 +85,15 @@ layout with no horizontal scroll at 320 px.
 
 All accounts share the domain `@bridgeability.demo`. One password per role:
 
-| Role | Email | Password |
-|---|---|---|
-| Requester | `requester@bridgeability.demo` | `bridge-requester-4d9d87` |
-| Provider | `provider@bridgeability.demo` | `bridge-provider-4d9d87` |
-| Admin | `admin@bridgeability.demo` | `bridge-admin-4d9d87` |
-| Coordinator | `coordinator@bridgeability.demo` | `bridge-coordinator-4d9d87` |
+Each role's password is the TP number of the group member who owns that role, so the
+credential maps straight to the workload matrix.
+
+| Role | Owner | Email | Password |
+|---|---|---|---|
+| Requester | Taha Fahd Ahmed Mohammed | `requester@bridgeability.demo` | `tp078281` |
+| Provider | Abubaker Elsiddig Tageldeen | `provider@bridgeability.demo` | `tp078003` |
+| Admin | Aldhahyani Lama M. A. | `admin@bridgeability.demo` | `tp078792` |
+| Coordinator | Noor Khalil Abdullah Khaled | `coordinator@bridgeability.demo` | `tp078880` |
 
 There are three requester and five provider accounts (`kumar@`, `meiling@`, `grace@`, `ravi@`,
 `nadia@`, `faizal@`) sharing each role's password; the four above are the ones to demonstrate

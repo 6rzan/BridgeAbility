@@ -1,7 +1,8 @@
 -- 003-demo-account-passwords.sql
 --
--- Sets the password for the seeded demonstration accounts to the values published in
--- README.md, so an assessor can sign in as each role.
+-- Sets the password for each seeded demonstration account to the TP number of the group member
+-- who owns that role, so an assessor can sign in as each role and the credential maps to the
+-- workload matrix. The plaintext is published in README.md.
 --
 -- WHY THIS PATCH EXISTS. seed.sql only runs against an empty database, so once an environment
 -- has been seeded there is no way to correct the seeded credentials through it. The original
@@ -14,26 +15,26 @@
 --
 -- Idempotent: an UPDATE to a fixed value converges, so every redeploy is a no-op.
 
--- requester: published in README.md
+-- requester (Taha Fahd Ahmed Mohammed): password published in README.md
 UPDATE users
-   SET password_hash = '$2a$12$aLjTpR3Vm7hnvxu5qnVem.JNn1kJ7TtRh.XQaVHXPQKEh4uOCLzZ6'
+   SET password_hash = '$2a$12$ZInFzsTw9X0DRgqyzVu2Keu8eQoli1xYRienSBumgl/DzQYotO76y'
  WHERE role = 'requester'
    AND email LIKE '%@bridgeability.demo';
 
--- provider: published in README.md
+-- provider (Abubaker Elsiddig Tageldeen): password published in README.md
 UPDATE users
-   SET password_hash = '$2a$12$PN5Jn1xRHYYDTDQxoT7R.e1cp4G8Kadv8Y/CAHCToLUssY4NtbHs2'
+   SET password_hash = '$2a$12$0xUpig2a69Y/D0Z7kzSD/.ONfDEBXqZmvEvcXXFr4N/sn3Arwl8zy'
  WHERE role = 'provider'
    AND email LIKE '%@bridgeability.demo';
 
--- admin: published in README.md
+-- admin (Aldhahyani Lama M. A.): password published in README.md
 UPDATE users
-   SET password_hash = '$2a$12$2mnTqgDmEBPul8JewYOy6u9gUJWLPvofgFUOyZQdNjWwHMAbSQfla'
+   SET password_hash = '$2a$12$j4epWOcHj8X2vh/753Tr2.I/4o5QTZLkwrbqRAZM91i9Wl8TaO/R6'
  WHERE role = 'admin'
    AND email LIKE '%@bridgeability.demo';
 
--- coordinator: published in README.md
+-- coordinator (Noor Khalil Abdullah Khaled): password published in README.md
 UPDATE users
-   SET password_hash = '$2a$12$cc0T/jHKdhMbJCStREyD0euBhuBAIyav/O1RqxEVXwLTYn8h229Y6'
+   SET password_hash = '$2a$12$Fi4uFh/vaYSrEP7b.xE//OwPsOwZMs9LlJcTs54TI5bHCaX2ZrPfC'
  WHERE role = 'coordinator'
    AND email LIKE '%@bridgeability.demo';
