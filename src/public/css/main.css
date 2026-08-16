@@ -434,3 +434,44 @@ th { font-weight: 650; }
   .container { padding-inline: var(--s6); }
   .grid--three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+
+/* --- Form details added with authentication ------------------------------- */
+/* The error paragraph is always in the DOM so its id can sit in aria-describedby
+   from the start. It is `display: flex` when shown, and an element's display
+   beats the [hidden] attribute's, so hiding it has to be stated explicitly --
+   without this line every form renders an empty error slot under each field. */
+.field__error[hidden] { display: none; }
+
+/* Radio and checkbox rows. 24px is the WCAG 2.2 SC 2.5.8 minimum target size;
+   the label is part of the target, which is why it carries the padding. */
+.field label.cluster {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s3);
+  margin-bottom: var(--s2);
+  padding: var(--s2) 0;
+  font-weight: 400;
+  cursor: pointer;
+}
+.field input[type="radio"],
+.field input[type="checkbox"] {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  accent-color: var(--primary);
+}
+
+fieldset .field__hint { margin-bottom: var(--s4); }
+
+/* --- Description lists ---------------------------------------------------- */
+dl { margin: 0; }
+dt { margin-bottom: var(--s1); }
+dd { margin: 0; }
+
+/* --- Lists inside alerts -------------------------------------------------- */
+/* The error summary is a real list of links, so it keeps list semantics and
+   markers rather than being flattened into a paragraph. */
+.alert__body ul { margin: 0; padding-left: var(--s4); }
+.alert__body li + li { margin-top: var(--s2); }
+.alert__body a { color: inherit; }

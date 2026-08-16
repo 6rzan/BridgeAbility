@@ -32,6 +32,18 @@ const schema = z.object({
   SESSION_SECRET: z.string().min(32, 'SESSION_SECRET must be at least 32 characters'),
   SESSION_TTL_SECONDS: z.coerce.number().int().positive().default(60 * 60 * 8),
 
+  // Sets the Secure attribute on the session and CSRF cookies, which tells the browser to
+  // send them over HTTPS only. It is a variable rather than a hardcoded `true` because a
+  // Secure cookie is silently dropped over plain HTTP, which would break sign-in outright.
+  //
+  // Our Beanstalk environment is reached at its *.elasticbeanstalk.com CNAME, and ACM will
+  // only issue a certificate for a domain whose ownership you can prove. We do not own that
+  // domain, so no certificate can be attached and the load balancer has no HTTPS listener.
+  // Put a certificate and a custom domain in front and this becomes SESSION_COOKIE_SECURE=true
+  // with no code change. Everything else about the cookies -- HttpOnly, SameSite=Lax, signed,
+  // server-side expiry -- is already in force.
+  SESSION_COOKIE_SECURE: z.enum(['true', 'false']).default('false'),
+
   PRESIGN_GET_TTL_SECONDS: z.coerce.number().int().positive().default(300),
   PRESIGN_PUT_TTL_SECONDS: z.coerce.number().int().positive().default(300),
   UPLOAD_MAX_BYTES: z.coerce.number().int().positive().default(5 * 1024 * 1024),
@@ -78,5 +90,6 @@ module.exports = {
   session: {
     secret: env.SESSION_SECRET,
     ttlSeconds: env.SESSION_TTL_SECONDS,
+    cookieSecure: env.SESSION_COOKIE_SECURE === 'true',
   },
 };

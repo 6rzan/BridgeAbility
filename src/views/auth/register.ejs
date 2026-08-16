@@ -1,0 +1,148 @@
+<%- include('../partials/header') %>
+
+<div class="prose">
+  <div class="page-head">
+    <h1>Create an account</h1>
+    <p class="lead">
+      Book accessibility services, or register your organisation to offer them.
+    </p>
+  </div>
+
+  <%- include('../partials/error-summary', { errors }) %>
+
+  <form method="post" action="/register" novalidate data-validate>
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <%#
+      Radios, not a select. The choice changes which fields apply, so both options need to be
+      visible at once, and a radio group is announced with its position ("1 of 2").
+    -%>
+    <fieldset>
+      <legend>How will you use BridgeAbility?</legend>
+
+      <div class="field">
+        <label for="field-role-requester" class="cluster">
+          <input
+            type="radio"
+            id="field-role-requester"
+            name="role"
+            value="requester"
+            <%= values.role === 'provider' ? '' : 'checked' %>
+            data-role-choice
+          >
+          <span>I am booking services for myself or someone I support</span>
+        </label>
+
+        <label for="field-role-provider" class="cluster">
+          <input
+            type="radio"
+            id="field-role-provider"
+            name="role"
+            value="provider"
+            <%= values.role === 'provider' ? 'checked' : '' %>
+            data-role-choice
+          >
+          <span>I represent an organisation offering services</span>
+        </label>
+      </div>
+    </fieldset>
+
+    <%- include('../partials/field', {
+      name: 'fullName',
+      label: 'Full name',
+      value: values.fullName,
+      error: errors.fullName,
+      autocomplete: 'name',
+      maxlength: 120
+    }) %>
+
+    <%- include('../partials/field', {
+      name: 'email',
+      label: 'Email address',
+      type: 'email',
+      value: values.email,
+      error: errors.email,
+      autocomplete: 'username',
+      inputmode: 'email',
+      maxlength: 190
+    }) %>
+
+    <%- include('../partials/field', {
+      name: 'password',
+      label: 'Password',
+      type: 'password',
+      error: errors.password,
+      hint: 'At least 12 characters. A phrase of three or four words you can remember is stronger than a short password with symbols in it.',
+      autocomplete: 'new-password',
+      minlength: 12,
+      maxlength: 128
+    }) %>
+
+    <%- include('../partials/field', {
+      name: 'confirmPassword',
+      label: 'Confirm password',
+      type: 'password',
+      error: errors.confirmPassword,
+      autocomplete: 'new-password',
+      maxlength: 128
+    }) %>
+
+    <%- include('../partials/field', {
+      name: 'phone',
+      label: 'Phone number',
+      type: 'tel',
+      value: values.phone,
+      error: errors.phone,
+      required: false,
+      hint: 'Providers and coordinators use this to reach you about a booking.',
+      autocomplete: 'tel',
+      maxlength: 30
+    }) %>
+
+    <%#
+      Both sections are rendered visible and each legend states who it is for, so the form is
+      complete and unambiguous with JavaScript disabled. form-validate.js then hides whichever
+      section does not apply to the selected role. Doing it the other way round -- server-
+      rendering one of them `hidden` and relying on script to reveal it -- would leave a
+      provider with no way to enter an organisation name if the script never runs.
+    -%>
+    <fieldset data-role-panel="provider">
+      <legend>Organisation details</legend>
+      <p class="field__hint">Complete this section if you are registering an organisation.</p>
+
+      <%- include('../partials/field', {
+        name: 'orgName',
+        label: 'Organisation name',
+        value: values.orgName,
+        error: errors.orgName,
+        hint: 'This is the name requesters will see. An administrator checks it before your listings appear.',
+        autocomplete: 'organization',
+        maxlength: 150
+      }) %>
+    </fieldset>
+
+    <fieldset data-role-panel="requester">
+      <legend>Access requirements</legend>
+      <p class="field__hint">Complete this section if you are booking services.</p>
+
+      <%- include('../partials/field', {
+        name: 'accessibilityNeeds',
+        label: 'What should a provider know in advance?',
+        type: 'textarea',
+        value: values.accessibilityNeeds,
+        error: errors.accessibilityNeeds,
+        required: false,
+        rows: 4,
+        maxlength: 2000,
+        hint: 'For example step-free access, a sign language interpreter, or extra time. You can change this later.'
+      }) %>
+    </fieldset>
+
+    <p class="cluster">
+      <button type="submit" class="btn btn--primary">Create account</button>
+      <a href="/login">I already have an account</a>
+    </p>
+  </form>
+</div>
+
+<%- include('../partials/footer') %>

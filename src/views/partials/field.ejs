@@ -1,0 +1,65 @@
+<%#
+  One form field: label, optional hint, control, and an error message bound to the control
+  with aria-describedby.
+
+  Every form in the application uses this partial so the accessible wiring is written once and
+  cannot drift. The error is stated in words and carries an icon; colour is never the only
+  thing marking a field as wrong (WCAG 2.2 SC 1.4.1). Optional fields are labelled "optional"
+  rather than marking required ones with an asterisk, which screen readers announce as "star".
+
+  Optional locals are read through `locals.` so a caller may omit them.
+-%>
+<%
+  const fieldName = name;
+  const fieldId = 'field-' + fieldName;
+  const errorId = fieldId + '-error';
+  const hintId = fieldId + '-hint';
+  const hint = locals.hint || null;
+  const error = locals.error || null;
+  const type = locals.type || 'text';
+  const required = locals.required !== false;
+  const value = locals.value == null ? '' : String(locals.value);
+  const describedBy = [hint ? hintId : null, error ? errorId : null].filter(Boolean).join(' ');
+-%>
+<div class="field">
+  <label for="<%= fieldId %>">
+    <%= label %><% if (!required) { %> <span class="muted">(optional)</span><% } %>
+  </label>
+
+  <% if (hint) { %>
+    <span class="field__hint" id="<%= hintId %>"><%= hint %></span>
+  <% } %>
+
+  <% if (type === 'textarea') { %>
+    <textarea
+      class="textarea"
+      id="<%= fieldId %>"
+      name="<%= fieldName %>"
+      rows="<%= locals.rows || 4 %>"
+      <% if (required) { %>required<% } %>
+      <% if (locals.maxlength) { %>maxlength="<%= locals.maxlength %>"<% } %>
+      <% if (error) { %>aria-invalid="true"<% } %>
+      <% if (describedBy) { %>aria-describedby="<%= describedBy %>"<% } %>
+    ><%= value %></textarea>
+  <% } else { %>
+    <input
+      class="input"
+      id="<%= fieldId %>"
+      name="<%= fieldName %>"
+      type="<%= type %>"
+      value="<%= value %>"
+      <% if (required) { %>required<% } %>
+      <% if (locals.autocomplete) { %>autocomplete="<%= locals.autocomplete %>"<% } %>
+      <% if (locals.inputmode) { %>inputmode="<%= locals.inputmode %>"<% } %>
+      <% if (locals.minlength) { %>minlength="<%= locals.minlength %>"<% } %>
+      <% if (locals.maxlength) { %>maxlength="<%= locals.maxlength %>"<% } %>
+      <% if (error) { %>aria-invalid="true"<% } %>
+      <% if (describedBy) { %>aria-describedby="<%= describedBy %>"<% } %>
+    >
+  <% } %>
+
+  <p class="field__error" id="<%= errorId %>" <% if (!error) { %>hidden<% } %>>
+    <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-error"></use></svg>
+    <span data-error-text><%= error || '' %></span>
+  </p>
+</div>

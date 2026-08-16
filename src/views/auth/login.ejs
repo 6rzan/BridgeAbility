@@ -1,0 +1,47 @@
+<%- include('../partials/header') %>
+
+<div class="prose">
+  <div class="page-head">
+    <h1>Sign in</h1>
+    <p class="lead">Use the email address and password you registered with.</p>
+  </div>
+
+  <%- include('../partials/error-summary', { errors }) %>
+
+  <%#
+    WCAG 2.2 SC 3.3.8 Accessible Authentication (Minimum): no cognitive function test. There
+    is no CAPTCHA, no puzzle and no "type the third character of your memorable word". Paste
+    is not blocked and the autocomplete tokens below let a password manager fill both fields,
+    which is the exemption the success criterion names.
+  -%>
+  <form method="post" action="/login" novalidate data-validate>
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <%- include('../partials/field', {
+      name: 'email',
+      label: 'Email address',
+      type: 'email',
+      value: values.email,
+      error: errors.email,
+      autocomplete: 'username',
+      inputmode: 'email',
+      maxlength: 190
+    }) %>
+
+    <%- include('../partials/field', {
+      name: 'password',
+      label: 'Password',
+      type: 'password',
+      error: errors.password,
+      autocomplete: 'current-password',
+      maxlength: 128
+    }) %>
+
+    <p class="cluster">
+      <button type="submit" class="btn btn--primary">Sign in</button>
+      <a href="/register">Create an account instead</a>
+    </p>
+  </form>
+</div>
+
+<%- include('../partials/footer') %>

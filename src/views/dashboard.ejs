@@ -1,0 +1,74 @@
+<%- include('partials/header') %>
+
+<div class="page-head prose">
+  <h1>Dashboard</h1>
+  <p class="lead"><%= summary.blurb %></p>
+</div>
+
+<div class="grid grid--split">
+  <div>
+    <div class="panel">
+      <h2 class="panel__title">Your account</h2>
+      <dl class="stack">
+        <div>
+          <dt class="text-sm muted">Name</dt>
+          <dd><%= account.full_name %></dd>
+        </div>
+        <div>
+          <dt class="text-sm muted">Email</dt>
+          <dd><%= account.email %></dd>
+        </div>
+        <div>
+          <dt class="text-sm muted">Role</dt>
+          <dd><%= summary.heading %></dd>
+        </div>
+        <% if (account.phone) { %>
+          <div>
+            <dt class="text-sm muted">Phone</dt>
+            <dd><%= account.phone %></dd>
+          </div>
+        <% } %>
+      </dl>
+    </div>
+  </div>
+
+  <div>
+    <%#
+      Provider verification status, read live from the providers table rather than from the
+      session, so an approval made by an administrator shows up on the next page load.
+    -%>
+    <% if (account.role === 'provider') { %>
+      <div class="panel">
+        <h2 class="panel__title">Verification</h2>
+        <p>
+          <%= account.org_name %> —
+          <span class="status status--<%= account.provider_status === 'approved' ? 'accepted' : account.provider_status %>">
+            <%= account.provider_status %>
+          </span>
+        </p>
+        <% if (account.provider_status === 'pending') { %>
+          <p>
+            An administrator is reviewing your organisation. Your listings will not appear to
+            requesters until it is approved.
+          </p>
+        <% } else if (account.provider_status === 'rejected') { %>
+          <p>
+            Your registration was not approved. Contact the platform administrator if you
+            believe this is a mistake.
+          </p>
+        <% } else { %>
+          <p>Your organisation is verified and your listings are visible to requesters.</p>
+        <% } %>
+      </div>
+    <% } %>
+
+    <div class="panel">
+      <h2 class="panel__title">Your tasks</h2>
+      <p class="muted">
+        Role tasks appear here as each part of the platform is enabled for your account.
+      </p>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/footer') %>

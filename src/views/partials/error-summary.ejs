@@ -1,0 +1,32 @@
+<%#
+  An error summary at the top of a form, listing every problem with a link to the field it
+  belongs to.
+
+  This is here because a per-field message alone is not enough: on a long form the failing
+  field can be off screen, and a screen reader user who submits gets no announcement at all
+  unless something takes focus. The summary is focused on load by public/js/form-validate.js,
+  and it is a real <a href="#field-..."> list so it still works with JavaScript off.
+
+  `role="alert"` makes assistive technology announce it as soon as it appears. The `form` key
+  is a whole-form problem, such as a rejected sign-in, and has no field to link to.
+-%>
+<% const errorEntries = Object.entries(errors || {}); -%>
+<% if (errorEntries.length > 0) { -%>
+  <div class="alert alert--error" role="alert" tabindex="-1" data-error-summary>
+    <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-error"></use></svg>
+    <div class="alert__body">
+      <h2 class="panel__title"><%= errorEntries.length === 1 ? 'There is a problem' : 'There are ' + errorEntries.length + ' problems' %></h2>
+      <ul>
+        <% for (const [field, message] of errorEntries) { %>
+          <li>
+            <% if (field === 'form') { %>
+              <%= message %>
+            <% } else { %>
+              <a href="#field-<%= field %>"><%= message %></a>
+            <% } %>
+          </li>
+        <% } %>
+      </ul>
+    </div>
+  </div>
+<% } -%>

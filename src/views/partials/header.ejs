@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title><%= title %> — BridgeAbility</title>
   <meta name="description" content="Find and book verified accessibility services — interpreters, accessible transport, caregivers and mobility assistance.">
+  <%# The CSRF cookie is HttpOnly, so `fetch` callers read the token from here instead. -%>
+  <meta name="csrf-token" content="<%= csrfToken %>">
   <link rel="stylesheet" href="/css/main.css">
   <link rel="icon" href="data:,">
 </head>
