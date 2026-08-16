@@ -16,9 +16,9 @@ Data stores: **RDS** (Amazon RDS for MySQL 8) · **DDB** (Amazon DynamoDB) · **
 
 | Store | Create | Read | Update | Delete |
 |---|---|---|---|---|
-| RDS | F-auth (users, providers) · F2 (bookings) · F3 (services) · *live* | F1 (services, providers) · F2 (own bookings) · F3 (own listings) · F4 (incoming queue) · *live* | F2 (cancel) · F3 (edit, withdraw, publish) · F4 (accept/reject) · *live* — F5, F7, F8 planned | F3 (delete an unbooked listing) · *live* |
+| RDS | F-auth (users, providers) · F2 (bookings) · F3 (services) · *live* | F1 (services, providers) · F2 (own bookings) · F3 (own listings) · F4 (incoming queue) · F5 (registration queue) · *live* | F2 (cancel) · F3 (edit, withdraw, publish) · F4 (accept/reject) · F5 (approve/reject) · *live* — F7, F8 planned | F3 (delete an unbooked listing) · *live* |
 | DDB | F-auth (sessions) · F2 (timeline events) · F4 (accept/reject events) · *live* | F-auth (sessions) · F2 (booking history) · F4 (booking history) · *live* | F-auth (session touch) · *live* | F-auth (sign-out) · *live* |
-| S3 | F-media (placeholder illustrations) · F3 (presigned PUT) · *live* | F1 (presigned GET) · F3 (own listing images) · *live* | F3 (replace an image) · *live* | F3 (remove an image, delete a listing) · *live* |
+| S3 | F-media (placeholder illustrations, verification documents) · F3 (presigned PUT) · *live* | F1 (presigned GET) · F3 (own listing images) · F5 (verification document) · *live* | F3 (replace an image) · *live* | F3 (remove an image, delete a listing) · *live* |
 
 "F-auth" is the cross-cutting authentication slice, owned jointly. Every other row has one
 named owner.
@@ -205,11 +205,42 @@ matches zero rows and the page tells them the request was already decided.
 
 ---
 
+## F5 — admin reviews and approves/rejects provider registrations (Aldhahyani Lama M. A., TP078792)
+
+| Verb | Store | What | Where |
+|---|---|---|---|
+| Read | RDS | Every provider registration, filterable by review status | `GET /admin/providers` → `adminProviderRepository.listByStatus` |
+| Read | RDS | Match count, and the per-status counts the filter menu shows | `GET /admin/providers` → `countByStatus`, `countAllByStatus` |
+| Read | RDS | One registration, with the reviewer's name and date once decided | `GET /admin/providers/:id` → `adminProviderRepository.findById` |
+| Read | S3 | Short-lived presigned GET for the uploaded verification document | `GET /admin/providers/:id` → `adminProviderService.attachDocUrl` → `presignGet` |
+| Update | RDS | `providers.status` → `approved`, `reviewed_by`, `reviewed_at`, guarded on the row still being `pending` | `POST /admin/providers/:id/approve` → `adminProviderRepository.decide` |
+| Update | RDS | `providers.status` → `rejected`, same audit fields, same guard | `POST /admin/providers/:id/reject` → `adminProviderRepository.decide` |
+
+**Why this is the second half of F1's visibility rule.** F1's catalogue shows a listing only
+when `p.status = 'approved'` as well as `s.is_active = 1`. A provider can create and edit
+listings the moment they register (F3), but nothing they publish is visible to a requester
+until this decision is made here — F5 is the gate F1 and F3 both assume exists.
+
+**Read-only access to the verification document, not a copy of it.** The document never leaves
+S3; the administrator gets a presigned GET with the same short expiry every other presigned URL
+in this application carries, minted only when this page is opened. The seeded document itself is
+a small placeholder PDF, uploaded by `db/seed-media.js` to whichever key each provider row
+actually carries — the fixture reads the key from the database rather than assuming a naming
+pattern, so it still works against the one seeded row whose key differs from the others.
+
+**The guard is the UPDATE's own WHERE clause.** `decide` is one statement —
+`UPDATE providers SET status=?, reviewed_by=?, reviewed_at=NOW() WHERE provider_id=? AND
+status='pending'` — the same shape as F2's `cancelPending` and F4's `setProviderDecision`. Two
+administrators opening the same pending registration and clicking Approve and Reject a moment
+apart resolve to whichever commits first; the loser's UPDATE matches zero rows and is told the
+registration was already decided.
+
+---
+
 ## Planned
 
 | | Owner | Verbs it will add |
 |---|---|---|
-| F5 | Aldhahyani Lama M. A. | RDS update (`providers.status`), S3 read (presigned GET of verification document) |
 | F6 | Aldhahyani Lama M. A. | RDS read (aggregates), DDB read (GSI-1 query) |
 | F7 | Noor Khalil Abdullah Khaled | RDS create (`assignments`), RDS update (`bookings.status`) |
 | F8 | Noor Khalil Abdullah Khaled | RDS update (`assignments.completion_status`), DDB create (timeline event) |

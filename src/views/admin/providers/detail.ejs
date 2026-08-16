@@ -1,0 +1,103 @@
+<%- include('../../partials/header') %>
+
+<nav aria-label="Breadcrumb" class="breadcrumb">
+  <a href="/admin/providers">
+    <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-clock"></use></svg>
+    Back to provider registrations
+  </a>
+</nav>
+
+<div class="page-head">
+  <p class="cluster">
+    <span class="status status--<%
+      %><%= provider.status === 'approved' ? 'accepted' : provider.status === 'rejected' ? 'rejected' : 'pending' %>">
+      <svg class="icon" aria-hidden="true" focusable="false">
+        <use href="#icon-<%
+          %><%= provider.status === 'approved' ? 'check-circle' : provider.status === 'rejected' ? 'error' : 'clock' %>"></use>
+      </svg>
+      <%= provider.statusLabel %>
+    </span>
+  </p>
+
+  <h1><%= provider.org_name %></h1>
+</div>
+
+<div class="grid grid--split">
+  <div>
+    <div class="panel">
+      <h2 class="panel__title">Registration</h2>
+      <dl class="stack">
+        <div>
+          <dt class="text-sm muted">Applicant</dt>
+          <dd><%= provider.applicant_name %> &middot; <%= provider.applicant_email %></dd>
+        </div>
+        <% if (provider.contact) { %>
+          <div>
+            <dt class="text-sm muted">Organisation contact</dt>
+            <dd><%= provider.contact %></dd>
+          </div>
+        <% } %>
+        <div>
+          <dt class="text-sm muted">Submitted</dt>
+          <dd><%= provider.submittedLabel %></dd>
+        </div>
+        <% if (provider.description) { %>
+          <div>
+            <dt class="text-sm muted">Description</dt>
+            <dd class="notes"><%= provider.description %></dd>
+          </div>
+        <% } %>
+        <% if (provider.reviewedLabel) { %>
+          <div>
+            <dt class="text-sm muted">Reviewed</dt>
+            <dd><%= provider.reviewedLabel %><% if (provider.reviewer_name) { %> by <%= provider.reviewer_name %><% } %></dd>
+          </div>
+        <% } %>
+      </dl>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel__title">Verification document</h2>
+      <% if (provider.docUrl) { %>
+        <p>
+          <a href="<%= provider.docUrl %>" target="_blank" rel="noopener noreferrer">
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-info"></use></svg>
+            Open the verification document
+            <span class="visually-hidden"> (opens in a new tab)</span>
+          </a>
+        </p>
+        <p class="text-sm muted">
+          This link is a short-lived, presigned URL. It stops working after a few minutes --
+          reload this page for a fresh one.
+        </p>
+      <% } else { %>
+        <p class="muted">No verification document is available.</p>
+      <% } %>
+    </div>
+  </div>
+
+  <div>
+    <% if (provider.canDecide) { %>
+      <div class="panel">
+        <h2 class="panel__title">Decide this registration</h2>
+        <p class="text-sm">
+          Approving makes every listing this organisation publishes visible in the public
+          catalogue. Declining leaves their listings hidden; they can be reviewed again later if
+          the registration is corrected and resubmitted through the normal process.
+        </p>
+        <div class="cluster">
+          <form method="post" action="/admin/providers/<%= provider.provider_id %>/approve">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button type="submit" class="btn btn--primary">Approve registration</button>
+          </form>
+          <form method="post" action="/admin/providers/<%= provider.provider_id %>/reject">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button type="submit" class="btn btn--danger">Reject registration</button>
+          </form>
+        </div>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<%- include('../../partials/footer') %>

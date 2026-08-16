@@ -28,6 +28,9 @@ const ROLE_SUMMARY = {
   admin: {
     heading: 'Administrator',
     blurb: 'Review provider registrations before they become visible, and monitor activity across the platform.',
+    tasks: [
+      { href: '/admin/providers', label: 'Provider registrations', description: 'Approve or reject organisations before their listings become visible.' },
+    ],
   },
   coordinator: {
     heading: 'Coordinator',

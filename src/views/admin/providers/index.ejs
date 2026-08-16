@@ -1,0 +1,143 @@
+<%- include('../../partials/header') %>
+
+<div class="page-head prose">
+  <h1>Provider registrations</h1>
+  <p class="lead">
+    Every organisation that has registered to offer services. Approving a registration is what
+    makes its listings visible in the public catalogue (F1) &mdash; a provider may build
+    listings the moment they register, but nobody can find them until this decision is made.
+  </p>
+</div>
+
+<% if (total === 0) { %>
+  <div class="empty-state">
+    <p>No organisations have registered yet.</p>
+  </div>
+<% } else { %>
+  <nav class="filter-bar" aria-label="Filter registrations by status">
+    <ul>
+      <li>
+        <a href="/admin/providers"<%= status === null ? ' aria-current="true"' : '' %>>
+          All <span class="filter-bar__count">(<%= total %>)</span>
+        </a>
+      </li>
+      <% for (const value of statuses) { %>
+        <li>
+          <a href="/admin/providers?status=<%= value %>"<%= status === value ? ' aria-current="true"' : '' %>>
+            <%= statusLabels[value] %> <span class="filter-bar__count">(<%= counts[value] || 0 %>)</span>
+          </a>
+        </li>
+      <% } %>
+    </ul>
+  </nav>
+
+  <p class="results-count">
+    <% if (pagination.totalItems === 0) { %>
+      No registrations are <%= statusLabels[status].toLowerCase() %>.
+    <% } else { %>
+      Showing <%= pagination.firstOnPage %>&ndash;<%= pagination.lastOnPage %>
+      of <%= pagination.totalItems %> registration<%= pagination.totalItems === 1 ? '' : 's' %><%
+        %><%= status ? ' with the status ' + statusLabels[status].toLowerCase() : '' %>.
+    <% } %>
+  </p>
+
+  <% if (pagination.totalItems === 0) { %>
+    <div class="empty-state">
+      <p>Nothing matched that filter.</p>
+      <p><a href="/admin/providers">Show all registrations</a>.</p>
+    </div>
+  <% } else { %>
+    <div class="table-wrap">
+      <table class="table--reflow">
+        <caption class="visually-hidden">
+          Provider registrations, oldest submission first.
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Organisation</th>
+            <th scope="col">Applicant</th>
+            <th scope="col">Submitted</th>
+            <th scope="col">Status</th>
+            <th scope="col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% for (const provider of providers) { %>
+            <tr>
+              <td data-label="Organisation">
+                <a href="/admin/providers/<%= provider.provider_id %>"><%= provider.org_name %></a>
+              </td>
+              <td data-label="Applicant">
+                <%= provider.applicant_name %>
+                <span class="muted text-sm"><%= provider.applicant_email %></span>
+              </td>
+              <td data-label="Submitted"><%= provider.submittedLabel %></td>
+              <td data-label="Status">
+                <%#
+                  Not the six booking statuses, so this borrows the pill's shape rather than the
+                  partial itself -- the same choice F3's own listings page already made for
+                  is_active. Colour is never the only signal (WCAG 2.2 SC 1.4.1).
+                -%>
+                <span class="status status--<%
+                  %><%= provider.status === 'approved' ? 'accepted' : provider.status === 'rejected' ? 'rejected' : 'pending' %>">
+                  <svg class="icon" aria-hidden="true" focusable="false">
+                    <use href="#icon-<%
+                      %><%= provider.status === 'approved' ? 'check-circle' : provider.status === 'rejected' ? 'error' : 'clock' %>"></use>
+                  </svg>
+                  <%= provider.statusLabel %>
+                </span>
+              </td>
+              <td data-label="Actions">
+                <a href="/admin/providers/<%= provider.provider_id %>">
+                  Review<span class="visually-hidden"> <%= provider.org_name %></span>
+                </a>
+              </td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+
+    <% if (pagination.totalPages > 1) { %>
+      <nav class="pagination" aria-label="Registration pages">
+        <ul>
+          <li>
+            <% if (pagination.hasPrevious) { %>
+              <a href="/admin/providers<%= buildQueryString({ page: pagination.currentPage - 1 }) %>" rel="prev">
+                Previous<span class="visually-hidden"> page</span>
+              </a>
+            <% } else { %>
+              <span aria-hidden="true">Previous</span>
+            <% } %>
+          </li>
+
+          <% for (let page = 1; page <= pagination.totalPages; page += 1) { %>
+            <li>
+              <% if (page === pagination.currentPage) { %>
+                <a href="/admin/providers<%= buildQueryString({ page }) %>" aria-current="page">
+                  <span class="visually-hidden">Page </span><%= page %>
+                </a>
+              <% } else { %>
+                <a href="/admin/providers<%= buildQueryString({ page }) %>">
+                  <span class="visually-hidden">Page </span><%= page %>
+                </a>
+              <% } %>
+            </li>
+          <% } %>
+
+          <li>
+            <% if (pagination.hasNext) { %>
+              <a href="/admin/providers<%= buildQueryString({ page: pagination.currentPage + 1 }) %>" rel="next">
+                Next<span class="visually-hidden"> page</span>
+              </a>
+            <% } else { %>
+              <span aria-hidden="true">Next</span>
+            <% } %>
+          </li>
+        </ul>
+      </nav>
+    <% } %>
+  <% } %>
+<% } %>
+
+<%- include('../../partials/footer') %>
