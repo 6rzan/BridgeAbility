@@ -184,6 +184,117 @@ async function cancelPending(bookingId, requesterId) {
   return result.affectedRows === 1;
 }
 
+/**
+ * The provider's view of one incoming request (F4). The requester's phone is shown here, not
+ * their email -- the same asymmetry as findForRequester, which shows the provider's contact
+ * only once a decision has been made.
+ */
+const PROVIDER_LIST_COLUMNS = `
+  b.booking_id, b.status, b.requested_datetime, b.notes, b.created_at,
+  s.service_id, s.title,
+  u.full_name AS requester_name, u.phone AS requester_phone
+`;
+
+/**
+ * One page of a provider's incoming requests, newest first.
+ *
+ * Reads through idx_bookings_service(service_id, status) by way of the join to `services`:
+ * s.provider_id narrows to this organisation's own listings, and the status filter, when
+ * given, is satisfied by the same index rather than a filesort.
+ */
+async function findIncomingForProvider(providerId, { status = null, limit, offset }) {
+  const clauses = ['s.provider_id = ?'];
+  const params = [providerId];
+
+  if (status) {
+    clauses.push('b.status = ?');
+    params.push(status);
+  }
+
+  return queryEscaped(
+    `SELECT ${PROVIDER_LIST_COLUMNS}
+       FROM bookings b
+       JOIN services s ON s.service_id = b.service_id
+       JOIN users u    ON u.user_id    = b.requester_id
+      WHERE ${clauses.join(' AND ')}
+      ORDER BY b.created_at DESC
+      LIMIT ? OFFSET ?`,
+    [...params, limit, offset]
+  );
+}
+
+/** Total for the pagination links, under the same filter as the page itself. */
+async function countIncomingForProvider(providerId, { status = null }) {
+  const clauses = ['s.provider_id = ?'];
+  const params = [providerId];
+
+  if (status) {
+    clauses.push('b.status = ?');
+    params.push(status);
+  }
+
+  const rows = await query(
+    `SELECT COUNT(*) AS total
+       FROM bookings b
+       JOIN services s ON s.service_id = b.service_id
+      WHERE ${clauses.join(' AND ')}`,
+    params
+  );
+
+  return rows[0].total;
+}
+
+/** How many of a provider's incoming requests sit in each status, for the filter menu's counts. */
+async function countByStatusForProvider(providerId) {
+  const rows = await query(
+    `SELECT b.status, COUNT(*) AS total
+       FROM bookings b
+       JOIN services s ON s.service_id = b.service_id
+      WHERE s.provider_id = ?
+      GROUP BY b.status`,
+    [providerId]
+  );
+
+  return Object.fromEntries(rows.map((row) => [row.status, row.total]));
+}
+
+/** One incoming request, but only if it is against a listing this provider owns. */
+async function findForProvider(bookingId, providerId) {
+  const rows = await query(
+    `SELECT ${PROVIDER_LIST_COLUMNS},
+            s.description AS service_description, s.location, s.price
+       FROM bookings b
+       JOIN services s ON s.service_id = b.service_id
+       JOIN users u    ON u.user_id    = b.requester_id
+      WHERE b.booking_id = ? AND s.provider_id = ?
+      LIMIT 1`,
+    [bookingId, providerId]
+  );
+
+  return rows[0] || null;
+}
+
+/**
+ * Accept or reject a pending request.
+ *
+ * A single guarded UPDATE, not a transaction -- this is one write with no second statement to
+ * keep atomic with it, the same shape as cancelPending above. The JOIN to `services` folds the
+ * ownership check into the same statement as the status guard, so two tabs both showing a
+ * pending request, or an accept and a reject racing each other, resolve to whichever commits
+ * first; the loser matches zero rows.
+ */
+async function setProviderDecision(bookingId, providerId, decision) {
+  const result = await query(
+    `UPDATE bookings b
+       JOIN services s ON s.service_id = b.service_id
+        SET b.status = ?
+      WHERE b.booking_id = ? AND s.provider_id = ? AND b.status = 'pending'`,
+    [decision, bookingId, providerId]
+  );
+
+  return result.affectedRows === 1;
+}
+
 module.exports = {
   createBooking,
   findByRequestKey,
@@ -192,4 +303,9 @@ module.exports = {
   countByStatusForRequester,
   findForRequester,
   cancelPending,
+  findIncomingForProvider,
+  countIncomingForProvider,
+  countByStatusForProvider,
+  findForProvider,
+  setProviderDecision,
 };

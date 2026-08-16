@@ -22,6 +22,7 @@ const ROLE_SUMMARY = {
     blurb: 'Publish the services your organisation offers and respond to incoming booking requests.',
     tasks: [
       { href: '/provider/services', label: 'My listings', description: 'Create, edit, withdraw and delete the services your organisation offers.' },
+      { href: '/provider/bookings', label: 'Incoming requests', description: 'Accept or decline booking requests sent against your listings.' },
     ],
   },
   admin: {

@@ -1,0 +1,148 @@
+<%- include('../../partials/header') %>
+
+<div class="page-head prose">
+  <h1>Incoming requests</h1>
+  <p class="lead">
+    Every booking requested against <%= provider.org_name %>'s listings. Accept or decline a
+    request while it is still awaiting your answer; once you decide, it is out of your hands.
+  </p>
+</div>
+
+<% if (total === 0) { %>
+  <div class="empty-state">
+    <p>No one has requested a booking against your listings yet.</p>
+  </div>
+<% } else { %>
+  <nav class="filter-bar" aria-label="Filter requests by status">
+    <ul>
+      <li>
+        <a href="/provider/bookings"<%= status === null ? ' aria-current="true"' : '' %>>
+          All <span class="filter-bar__count">(<%= total %>)</span>
+        </a>
+      </li>
+      <% for (const value of statuses) { %>
+        <li>
+          <a href="/provider/bookings?status=<%= value %>"<%= status === value ? ' aria-current="true"' : '' %>>
+            <%= statusLabels[value] %> <span class="filter-bar__count">(<%= counts[value] || 0 %>)</span>
+          </a>
+        </li>
+      <% } %>
+    </ul>
+  </nav>
+
+  <p class="results-count">
+    <% if (pagination.totalItems === 0) { %>
+      No requests are <%= statusLabels[status].toLowerCase() %>.
+    <% } else { %>
+      Showing <%= pagination.firstOnPage %>&ndash;<%= pagination.lastOnPage %>
+      of <%= pagination.totalItems %> request<%= pagination.totalItems === 1 ? '' : 's' %><%
+        %><%= status ? ' with the status ' + statusLabels[status].toLowerCase() : '' %>.
+    <% } %>
+  </p>
+
+  <% if (pagination.totalItems === 0) { %>
+    <div class="empty-state">
+      <p>Nothing matched that filter.</p>
+      <p><a href="/provider/bookings">Show all requests</a>.</p>
+    </div>
+  <% } else { %>
+    <div class="table-wrap">
+      <table class="table--reflow">
+        <caption class="visually-hidden">
+          Requests against your listings, most recently sent first.
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Reference</th>
+            <th scope="col">Requester</th>
+            <th scope="col">Requested for</th>
+            <th scope="col">Status</th>
+            <th scope="col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% for (const booking of bookings) { %>
+            <tr>
+              <td data-label="Reference">
+                <a href="/provider/bookings/<%= booking.booking_id %>">#<%= booking.booking_id %></a>
+                <span class="muted text-sm"><%= booking.title %></span>
+              </td>
+              <td data-label="Requester"><%= booking.requester_name %></td>
+              <td data-label="Requested for">
+                <time datetime="<%= booking.requestedAttribute %>"><%= booking.requestedLabel %></time>
+              </td>
+              <td data-label="Status">
+                <%- include('../../partials/status-pill', {
+                  status: booking.status,
+                  statusLabel: booking.statusLabel
+                }) %>
+              </td>
+              <td data-label="Actions">
+                <% if (booking.canDecide) { %>
+                  <div class="cluster">
+                    <form method="post" action="/provider/bookings/<%= booking.booking_id %>/accept">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                      <button type="submit" class="btn btn--primary">
+                        Accept<span class="visually-hidden"> request #<%= booking.booking_id %></span>
+                      </button>
+                    </form>
+                    <form method="post" action="/provider/bookings/<%= booking.booking_id %>/reject">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                      <button type="submit" class="btn btn--danger">
+                        Decline<span class="visually-hidden"> request #<%= booking.booking_id %></span>
+                      </button>
+                    </form>
+                  </div>
+                <% } else { %>
+                  <a href="/provider/bookings/<%= booking.booking_id %>">View</a>
+                <% } %>
+              </td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+
+    <% if (pagination.totalPages > 1) { %>
+      <nav class="pagination" aria-label="Request pages">
+        <ul>
+          <li>
+            <% if (pagination.hasPrevious) { %>
+              <a href="/provider/bookings<%= buildQueryString({ page: pagination.currentPage - 1 }) %>" rel="prev">
+                Previous<span class="visually-hidden"> page</span>
+              </a>
+            <% } else { %>
+              <span aria-hidden="true">Previous</span>
+            <% } %>
+          </li>
+
+          <% for (let page = 1; page <= pagination.totalPages; page += 1) { %>
+            <li>
+              <% if (page === pagination.currentPage) { %>
+                <a href="/provider/bookings<%= buildQueryString({ page }) %>" aria-current="page">
+                  <span class="visually-hidden">Page </span><%= page %>
+                </a>
+              <% } else { %>
+                <a href="/provider/bookings<%= buildQueryString({ page }) %>">
+                  <span class="visually-hidden">Page </span><%= page %>
+                </a>
+              <% } %>
+            </li>
+          <% } %>
+
+          <li>
+            <% if (pagination.hasNext) { %>
+              <a href="/provider/bookings<%= buildQueryString({ page: pagination.currentPage + 1 }) %>" rel="next">
+                Next<span class="visually-hidden"> page</span>
+              </a>
+            <% } else { %>
+              <span aria-hidden="true">Next</span>
+            <% } %>
+          </li>
+        </ul>
+      </nav>
+    <% } %>
+  <% } %>
+<% } %>
+
+<%- include('../../partials/footer') %>

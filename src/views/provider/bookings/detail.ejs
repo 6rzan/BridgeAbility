@@ -1,0 +1,137 @@
+<%- include('../../partials/header') %>
+
+<nav aria-label="Breadcrumb" class="breadcrumb">
+  <a href="/provider/bookings">
+    <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-clock"></use></svg>
+    Back to incoming requests
+  </a>
+</nav>
+
+<div class="page-head">
+  <p class="cluster">
+    <%- include('../../partials/status-pill', {
+      status: booking.status,
+      statusLabel: booking.statusLabel
+    }) %>
+    <span class="muted text-sm">Request #<%= booking.booking_id %></span>
+  </p>
+
+  <h1><%= booking.title %></h1>
+
+  <p class="lead"><%= booking.statusExplanation %></p>
+</div>
+
+<div class="grid grid--split">
+  <div>
+    <div class="panel">
+      <h2 class="panel__title">The request</h2>
+      <dl class="stack">
+        <div>
+          <dt class="text-sm muted">Requester</dt>
+          <dd><%= booking.requester_name %></dd>
+        </div>
+        <% if (booking.requester_phone) { %>
+          <div>
+            <dt class="text-sm muted">Contact</dt>
+            <dd><%= booking.requester_phone %></dd>
+          </div>
+        <% } %>
+        <div>
+          <dt class="text-sm muted">Requested for</dt>
+          <dd>
+            <time datetime="<%= booking.requestedAttribute %>"><%= booking.requestedLabel %></time>
+          </dd>
+        </div>
+        <div>
+          <dt class="text-sm muted">Sent</dt>
+          <dd><%= booking.createdLabel %></dd>
+        </div>
+        <% if (booking.location) { %>
+          <div>
+            <dt class="text-sm muted">Location</dt>
+            <dd>
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-map-pin"></use></svg>
+              <%= booking.location %>
+            </dd>
+          </div>
+        <% } %>
+        <% if (booking.price != null) { %>
+          <div>
+            <dt class="text-sm muted">Price</dt>
+            <dd>RM <%= Number(booking.price).toFixed(2) %></dd>
+          </div>
+        <% } %>
+        <% if (booking.notes) { %>
+          <div>
+            <dt class="text-sm muted">What the requester told you</dt>
+            <dd class="notes"><%= booking.notes %></dd>
+          </div>
+        <% } %>
+      </dl>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel__title">History</h2>
+
+      <% if (!timelineAvailable) { %>
+        <p class="muted">
+          The history could not be loaded just now. The status above is current and is held
+          separately, so it is unaffected. Reload the page to try again.
+        </p>
+      <% } else if (timeline.length === 0) { %>
+        <p class="muted">Nothing has been recorded against this request yet.</p>
+      <% } else { %>
+        <ol class="timeline" role="list">
+          <% for (const entry of timeline) { %>
+            <li class="timeline__item">
+              <p class="timeline__label"><%= entry.label %></p>
+              <p class="timeline__meta text-sm muted">
+                <time datetime="<%= entry.occurredAt %>"><%= entry.occurredLabel %></time>
+                <% if (entry.actorName) { %>
+                  &middot; <%= entry.actorName %>
+                <% } %>
+              </p>
+              <% if (entry.detail) { %>
+                <p class="timeline__detail text-sm"><%= entry.detail %></p>
+              <% } %>
+            </li>
+          <% } %>
+        </ol>
+      <% } %>
+    </div>
+  </div>
+
+  <div>
+    <% if (booking.canDecide) { %>
+      <div class="panel">
+        <h2 class="panel__title">Respond to this request</h2>
+        <p class="text-sm">
+          Accepting tells the requester you will provide this service; a coordinator will then
+          assign a volunteer assistant. Declining ends the request here.
+        </p>
+        <div class="cluster">
+          <form method="post" action="/provider/bookings/<%= booking.booking_id %>/accept">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button type="submit" class="btn btn--primary">Accept this request</button>
+          </form>
+          <form method="post" action="/provider/bookings/<%= booking.booking_id %>/reject">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button type="submit" class="btn btn--danger">Decline this request</button>
+          </form>
+        </div>
+      </div>
+    <% } %>
+
+    <div class="panel">
+      <h2 class="panel__title">What happens next</h2>
+      <ol class="stack text-sm">
+        <li>You accept or decline the request.</li>
+        <li>If accepted, a coordinator assigns a volunteer assistant.</li>
+        <li>The assistant carries out the booking and it is marked completed.</li>
+      </ol>
+      <p class="text-sm muted">Every step is added to the history on this page.</p>
+    </div>
+  </div>
+</div>
+
+<%- include('../../partials/footer') %>

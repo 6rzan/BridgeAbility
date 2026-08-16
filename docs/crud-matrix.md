@@ -16,8 +16,8 @@ Data stores: **RDS** (Amazon RDS for MySQL 8) · **DDB** (Amazon DynamoDB) · **
 
 | Store | Create | Read | Update | Delete |
 |---|---|---|---|---|
-| RDS | F-auth (users, providers) · F2 (bookings) · F3 (services) · *live* | F1 (services, providers) · F2 (own bookings) · F3 (own listings) · *live* | F2 (cancel) · F3 (edit, withdraw, publish) · *live* — F4, F5, F7, F8 planned | F3 (delete an unbooked listing) · *live* |
-| DDB | F-auth (sessions) · F2 (timeline events) · *live* | F-auth (sessions) · F2 (booking history) · *live* | F-auth (session touch) · *live* | F-auth (sign-out) · *live* |
+| RDS | F-auth (users, providers) · F2 (bookings) · F3 (services) · *live* | F1 (services, providers) · F2 (own bookings) · F3 (own listings) · F4 (incoming queue) · *live* | F2 (cancel) · F3 (edit, withdraw, publish) · F4 (accept/reject) · *live* — F5, F7, F8 planned | F3 (delete an unbooked listing) · *live* |
+| DDB | F-auth (sessions) · F2 (timeline events) · F4 (accept/reject events) · *live* | F-auth (sessions) · F2 (booking history) · F4 (booking history) · *live* | F-auth (session touch) · *live* | F-auth (sign-out) · *live* |
 | S3 | F-media (placeholder illustrations) · F3 (presigned PUT) · *live* | F1 (presigned GET) · F3 (own listing images) · *live* | F3 (replace an image) · *live* | F3 (remove an image, delete a listing) · *live* |
 
 "F-auth" is the cross-cutting authentication slice, owned jointly. Every other row has one
@@ -172,11 +172,43 @@ the provider to wonder why nobody can find them.
 
 ---
 
+## F4 — provider accepts/rejects/updates booking requests (Abubaker Elsiddig Tageldeen, TP078003)
+
+| Verb | Store | What | Where |
+|---|---|---|---|
+| Read | RDS | This provider's incoming queue, joined to the requester and filterable by status | `GET /provider/bookings` → `bookingRepository.findIncomingForProvider` |
+| Read | RDS | Match count, and the per-status counts the filter menu shows | `GET /provider/bookings` → `countIncomingForProvider`, `countByStatusForProvider` |
+| Read | RDS | One incoming request and its history, only if this provider owns the underlying service | `GET /provider/bookings/:id` → `bookingRepository.findForProvider` |
+| Read | DDB | The whole history of one booking | `GET /provider/bookings/:id` → `timelineRepository.listEvents` |
+| Update | RDS | `bookings.status` → `accepted`, guarded on the row still being `pending` and the service belonging to this provider | `POST /provider/bookings/:id/accept` → `bookingRepository.setProviderDecision` |
+| Create | DDB | `BOOKING_ACCEPTED` timeline event, written only when a row actually changed | `POST /provider/bookings/:id/accept` → `timelineRepository.appendEvent` |
+| Update | RDS | `bookings.status` → `rejected`, same guard | `POST /provider/bookings/:id/reject` → `bookingRepository.setProviderDecision` |
+| Create | DDB | `BOOKING_REJECTED` timeline event, written only when a row actually changed | `POST /provider/bookings/:id/reject` → `timelineRepository.appendEvent` |
+
+**What "update" means here.** `bookings` carries no field a provider is entitled to edit —
+`requested_datetime` and `notes` are the requester's own input, and no route anywhere lets a
+provider change them. The "update" in this functionality's name is the status transition
+itself: `pending → accepted` or `pending → rejected`. There is no third action.
+
+**Ownership.** `provider_id` is resolved from `req.session.user.id` through
+`providerServiceRepository.findProviderByUserId` (F3), reused rather than re-implemented. Every
+statement in `bookingRepository`'s provider-facing functions joins `bookings` to `services` and
+filters on `s.provider_id`, so a booking against another organisation's listing is a 404, not a
+403 — the same rule F2 and F3 already established.
+
+**The guard is the UPDATE's own WHERE clause.** `setProviderDecision` runs a single multi-table
+`UPDATE bookings b JOIN services s ... WHERE b.status = 'pending' AND s.provider_id = ?`, the
+same shape as F2's `cancelPending`, not a `SELECT ... FOR UPDATE` transaction — there is no
+second statement to keep atomic with the first. Two tabs both showing a pending request, or an
+accept and a reject racing each other, resolve to whichever commits first; the loser's UPDATE
+matches zero rows and the page tells them the request was already decided.
+
+---
+
 ## Planned
 
 | | Owner | Verbs it will add |
 |---|---|---|
-| F4 | Abubaker Elsiddig Tageldeen | RDS update (`bookings.status`), DDB create (timeline event) |
 | F5 | Aldhahyani Lama M. A. | RDS update (`providers.status`), S3 read (presigned GET of verification document) |
 | F6 | Aldhahyani Lama M. A. | RDS read (aggregates), DDB read (GSI-1 query) |
 | F7 | Noor Khalil Abdullah Khaled | RDS create (`assignments`), RDS update (`bookings.status`) |
