@@ -4,13 +4,10 @@ const authService = require('../services/authService');
 const { loginSchema, registerSchema, fieldErrors } = require('../validation/authSchemas');
 const { rotateToken } = require('../middleware/csrf');
 
-/**
- * Registration, sign-in and sign-out.
- *
- * Cross-cutting work: every role reaches the application through these three routes.
- */
 
-/** Promisified so the handlers below can stay linear instead of nesting callbacks. */
+
+
+
 function regenerateSession(req) {
   return new Promise((resolve, reject) => {
     req.session.regenerate((error) => (error ? reject(error) : resolve()));
@@ -29,14 +26,8 @@ function destroySession(req) {
   });
 }
 
-/**
- * Sign a user in.
- *
- * The session id is regenerated first. Without that, an attacker who plants a known session
- * id in the victim's browser before sign-in still holds a valid id afterwards -- session
- * fixation. Regenerating means the id the user is authenticated under is one that has never
- * been outside this server.
- */
+
+
 async function establishSession(req, res, user) {
   const returnTo = req.session.returnTo;
 
@@ -44,7 +35,7 @@ async function establishSession(req, res, user) {
   req.session.user = user;
   await saveSession(req);
 
-  // A CSRF token issued to the anonymous visitor must not stay valid for the signed-in one.
+
   rotateToken(req, res);
 
   return typeof returnTo === 'string' && returnTo.startsWith('/') ? returnTo : '/dashboard';
@@ -75,8 +66,7 @@ async function postLogin(req, res, next) {
     const user = await authService.verifyCredentials(parsed.data.email, parsed.data.password);
 
     if (!user) {
-      // One message for both "no such account" and "wrong password", by design. Status 401
-      // rather than 400: the request was well formed, the credentials were not accepted.
+
       return res.status(401).render('auth/login', {
         title: 'Sign in',
         values: { email: parsed.data.email },
@@ -103,8 +93,7 @@ function getRegister(req, res) {
 }
 
 async function postRegister(req, res, next) {
-  // Everything except the passwords is echoed back on failure, so a long form does not have
-  // to be retyped. Passwords are never re-rendered into the HTML.
+
   const values = {
     fullName: req.body.fullName || '',
     email: req.body.email || '',
@@ -151,10 +140,8 @@ async function postRegister(req, res, next) {
   }
 }
 
-/**
- * Sign out. POST, never GET: a GET sign-out can be triggered by any image tag pointing at it,
- * and it is state-changing, so it takes a CSRF token like every other write.
- */
+
+
 async function postLogout(req, res, next) {
   try {
     await destroySession(req);

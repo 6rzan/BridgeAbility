@@ -23,16 +23,13 @@ test('a session with no usable cookie lifetime falls back to the configured TTL'
   }
 });
 
-// DynamoDB stores TTL as a Number of seconds, not milliseconds. Writing milliseconds would
-// put every expiry ~50,000 years into the future and nothing would ever be swept.
+
 test('the expiry is in seconds, not milliseconds', () => {
   const expiry = expiryEpochSeconds({ cookie: { maxAge: 1000 } }, NOW_MS);
   assert.ok(expiry < 4_000_000_000, `expected epoch seconds, got ${expiry}`);
 });
 
-// This is the reason the store checks expiry itself. AWS documents TTL deletion as typically
-// happening within a few days of the expiry time, so an expired item is still readable and
-// would otherwise keep a signed-out session alive.
+
 test('an item past its expiry is treated as absent even though DynamoDB still holds it', () => {
   assert.equal(isExpired({ expiresAt: NOW_SECONDS - 1 }, NOW_MS), true);
 });

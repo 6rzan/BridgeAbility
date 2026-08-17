@@ -7,9 +7,7 @@ const path = require('node:path');
 
 const { splitStatements } = require('../../db/run-migrations');
 
-// These cases are not hypothetical. A naive split on ';' shipped to Elastic Beanstalk and
-// failed the deploy: seed.sql contains accessibility notes such as "Deaf; communicates in
-// Malaysian Sign Language", and cutting at that semicolon produced a truncated statement.
+
 test('does not split on a semicolon inside a single-quoted string', () => {
   const sql = "INSERT INTO users (note) VALUES ('Deaf; communicates in MSL');";
   const statements = splitStatements(sql);
@@ -49,7 +47,7 @@ test('ignores a trailing statement that is only whitespace', () => {
   assert.deepEqual(splitStatements('SELECT 1;\n\n  \n'), ['SELECT 1']);
 });
 
-// Guards the real files: every statement must be balanced, which is what the deploy needed.
+
 test('the committed schema and seed split into complete statements', () => {
   for (const file of ['schema.sql', 'seed.sql']) {
     const sql = fs.readFileSync(path.join(__dirname, '..', '..', 'db', file), 'utf8');

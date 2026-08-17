@@ -2,14 +2,10 @@
 
 const adminReportService = require('../services/adminReportService');
 
-/**
- * F6 -- an administrator monitors system-wide activity through reports.
- *
- * One route, read-only: no form, no CSRF token needed, no per-row ownership -- the same
- * "role guard is the whole access model" reasoning as F5's adminProviderController.
- */
 
-/** GET /admin/reports -- counts by status across bookings, providers and assignments. */
+
+
+
 async function getReport(req, res, next) {
   try {
     const {
