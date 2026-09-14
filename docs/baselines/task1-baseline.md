@@ -40,18 +40,38 @@ RDS per request (`reportRepository.js`) — the exact query shape MS-2 replaces 
 reading DynamoDB's `GSI-1`/`GSI-2` instead. Its p99 here (1788ms) is the number MS-2's own load
 test should be compared against directly.
 
+## CloudWatch metrics during the load test (pulled via CLI, `get-metric-data`)
+
+| Metric | Peak during the run | Note |
+|---|---|---|
+| EC2 `CPUUtilization` (the app instance) | ~5.8% | Barely moved -- 10 concurrent connections doesn't stress a `t3.micro`'s CPU |
+| RDS `CPUUtilization` | ~8.0% | Also barely moved |
+| RDS `DatabaseConnections` | 8 (peak) | Roughly tracks the 10 configured connections, as expected |
+| RDS `ReadLatency` / `WriteLatency` | ~0.0005–0.002 **seconds** (sub-millisecond to low-millisecond) | Effectively negligible |
+
+**This is the interesting finding, not a footnote.** Neither CPU metric moved meaningfully, and
+RDS's own read/write latency is negligible -- yet the load test measured 400–600ms average
+application latency with a multi-second p99. The bottleneck in this architecture is not RDS
+capacity; it is almost certainly Node's single-threaded event loop on a `t3.micro` serialising
+concurrent EJS renders, plus whatever overhead the session/CSRF middleware chain adds per
+request. That is directly relevant to Section 3's "evaluate whether the architectural changes
+are beneficial" question: moving a read path to a Lambda (MS-2, MS-3) does not help because RDS
+was the constraint -- it helps because it removes work from the one instance that is actually
+the bottleneck, and lets that read path scale independently of it.
+
 ## What is not yet captured
 
-- **CloudWatch dashboard screenshot** (EC2 `CPUUtilization`, RDS `CPUUtilization` /
-  `DatabaseConnections` / `ReadLatency` / `WriteLatency`, taken during a load test run) — no
-  console screenshot capability from this session; take this from the AWS console with the load
-  test running, not idle (see `docs/task2-plan.md`, B3).
-- **X-Ray service map** — X-Ray is wired into the app (`src/lib/xray.js`) and the daemon is
-  enabled (`.ebextensions/02-options.config`), but this session's own IAM role does not have
-  `xray:GetTraceSummaries` to verify traces arrived via CLI. Check the X-Ray console directly:
-  Services → the map should show Express → RDS / DynamoDB / S3 as separate nodes.
-- Both are needed before Section 3 can be written up; capture them from a browser with console
-  access, ideally while `scripts/loadtest.js` is running so the dashboard is not idle.
+- **A CloudWatch dashboard screenshot.** The numbers above are the real data, pulled via
+  `aws cloudwatch get-metric-data`; a visual dashboard (a proper widget layout, screenshotted
+  live) is still worth building for the report, since Section 3 explicitly wants a screenshot,
+  not just a table -- see `docs/task2-plan.md`, B3, for the dashboard layout this feeds into
+  once Task 2's environment exists alongside this one.
+- **X-Ray service map.** X-Ray is wired into the app (`src/lib/xray.js`) and the daemon is
+  enabled (`.ebextensions/02-options.config`), and the load test almost certainly generated
+  traces, but this session's own IAM role does not have `xray:GetTraceSummaries` to confirm via
+  CLI. Check the X-Ray console directly: Services → the map should show Express → RDS /
+  DynamoDB / S3 as separate nodes. If it is empty, that is itself worth knowing before Task 2
+  builds on the assumption that X-Ray is working.
 
 ## A defect found while capturing this
 
