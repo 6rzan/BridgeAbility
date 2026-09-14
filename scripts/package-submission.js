@@ -38,6 +38,10 @@ function run(command, args, options = {}) {
     cwd: repoRoot,
     stdio: ['ignore', 'pipe', 'pipe'],
     encoding: 'utf8',
+    // On Windows, npm (and other Node-installed CLIs) is a .cmd shim, not a directly
+    // executable file -- execFileSync cannot spawn it without going through a shell there.
+    // Everywhere else this is a no-op: git, node and bash are all real executables.
+    shell: process.platform === 'win32',
     ...options,
   });
 }
