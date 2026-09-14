@@ -14,7 +14,8 @@
     "test": "node --test \"tests/unit/**/*.test.js\"",
     "test:integration": "node --test \"tests/integration/**/*.test.js\"",
     "secret-scan": "bash scripts/secret-scan.sh",
-    "package": "node scripts/package-submission.js"
+    "package": "node scripts/package-submission.js",
+    "loadtest": "node scripts/loadtest.js"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.700.0",
@@ -32,6 +33,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "autocannon": "^8.0.0",
     "supertest": "^7.0.0"
   }
 }

@@ -29,9 +29,12 @@
 #   SUBNET_IDS=subnet-a,subnet-b,subnet-c \
 #   APP_SECURITY_GROUP_ID=sg-xxxx \
 #   S3_BUCKET=bridgeability-media-<your-tp-number> \
-#   DB_PASSWORD='a strong password, 8-41 characters, no @ / " or spaces' \
+#   DB_PASSWORD=your_db_password \
 #   AWS_REGION=us-east-1 \
 #     bash scripts/provision.sh
+#
+# RDS's own constraint on DB_PASSWORD: 8-41 characters, and it may not contain '@', '/', '"'
+# or a space -- create-db-instance rejects it otherwise.
 #
 # Find VPC_ID / SUBNET_IDS from your current lab session with:
 #   aws ec2 describe-vpcs --query 'Vpcs[0].VpcId'
