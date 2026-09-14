@@ -3,6 +3,7 @@
 const bookingRepository = require('../data/mysql/bookingRepository');
 const serviceRepository = require('../data/mysql/serviceRepository');
 const timelineRepository = require('../data/dynamo/timelineRepository');
+const { fetchTimeline } = require('./timelineGateway');
 const {
   toMysqlDatetime,
   formatWallClock,
@@ -177,7 +178,7 @@ async function findForRequester(bookingId, requesterId) {
   let timelineAvailable = true;
 
   try {
-    timeline = await timelineRepository.listEvents(bookingId);
+    timeline = await fetchTimeline(bookingId);
   } catch (error) {
     console.error('[timeline] read failed', { bookingId, error: error.message });
     timelineAvailable = false;

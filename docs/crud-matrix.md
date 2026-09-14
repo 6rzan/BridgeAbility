@@ -21,12 +21,12 @@ Data stores: **RDS** (Amazon RDS for MySQL 8) · **DDB** (Amazon DynamoDB) · **
 | DDB | F-auth (sessions) · F2 (timeline events) · F4 (accept/reject events) · F7 (assignment event) · F8 (completed event) · MS-1 (notification record) · *live* | F-auth (sessions) · F2 (booking history) · F4 (booking history) · F6 (completed-bookings report, `GSI-1`, via MS-2) · F7 (booking history) · *live* | F-auth (session touch) · *live* | F-auth (sign-out) · *live* |
 | S3 | F-media (placeholder illustrations, verification documents) · F3 (presigned PUT) · *live* | F1 (presigned GET) · F3 (own listing images) · F5 (verification document) · *live* | F3 (replace an image) · *live* | F3 (remove an image, delete a listing) · *live* |
 | SNS/SQS | F4, F5 (booking/provider decisions published to `bridgeability-booking-events`, consumed by MS-1's Lambda) · *live, verified end to end (`docs/task2-plan.md`)* | — | — | — |
-| APIGW | — | F6 (`GET /reports/recently-completed`, MS-2's Lambda reading `GSI-1`) · *live, verified end to end* | — | — |
+| APIGW | — | F6 (`GET /reports/recently-completed`, MS-2's Lambda reading `GSI-1`) · F2, F4, F7, F8 (`GET /timeline/{bookingId}`, MS-3's Lambda, called server-side only — never from the browser, see F2's MS-3 note) · *live, verified end to end* | — | — |
 
 "F-auth" is the cross-cutting authentication slice, owned jointly. Every other row has one
-named owner. MS-1 and MS-2 are Task 2's serverless additions (`docs/task2-plan.md`) — Abubaker
-and Lama respectively — layered onto F4/F5 and F6 without changing either functionality's own
-RDS behaviour.
+named owner. MS-1, MS-2 and MS-3 are Task 2's serverless additions (`docs/task2-plan.md`) —
+Abubaker, Lama and Noor respectively — layered onto F4/F5, F6, and F2/F4/F7/F8 without changing
+any functionality's own RDS behaviour or its server-side authorization checks.
 
 ---
 
@@ -79,9 +79,18 @@ server-side check.
 | Read | RDS | One page of this requester's own bookings, filtered by status | `GET /bookings` → `bookingRepository.listForRequester` |
 | Read | RDS | Match count, and the per-status counts the filter menu shows | `GET /bookings` → `countForRequester`, `countByStatusForRequester` |
 | Read | RDS | One booking, joined to its service, provider and assignment | `GET /bookings/:id` → `bookingRepository.findForRequester` |
-| Read | DDB | The whole history of one booking, one Query on `PK BOOKING#<id>` | `GET /bookings/:id` → `timelineRepository.listEvents` |
+| Read | DDB / API Gateway + Lambda (MS-3, Task 2) | The whole history of one booking, one Query on `PK BOOKING#<id>` | `GET /bookings/:id` → `bookingService.findForRequester` → `timelineGateway.fetchTimeline` → API Gateway `GET /timeline/{bookingId}` → `services/timeline/index.js`, falling back to the pre-Task-2 direct `timelineRepository.listEvents` call on any failure or when `TIMELINE_API_URL` is unset |
 | Update | RDS | `bookings.status` → `cancelled`, guarded on the row still being pending | `POST /bookings/:id/cancel` → `bookingRepository.cancelPending` |
 | Create | DDB | `BOOKING_CANCELLED` timeline event, written only when a row actually changed | `POST /bookings/:id/cancel` → `timelineRepository.appendEvent` |
+
+**MS-3 (Task 2).** The same gateway-with-fallback extraction also covers F4's incoming-request
+detail (`providerBookingService.findForProvider`) and F7/F8's coordinator detail
+(`coordinatorBookingService.findDetail`) — one Lambda behind one API Gateway route, called from
+all three services. Deliberately called server-side, from code that has already checked the
+caller owns or is entitled to see this specific booking, and never from the browser directly —
+this Lambda has no ownership check of its own, so exposing it to client-side `fetch` would let
+anyone read any booking's history by guessing an id. See `services/timeline/index.js` for the
+full reasoning and `docs/task2-plan.md`, B1.
 
 **Authorization is in the WHERE clause.** There is no function in `bookingRepository` that
 fetches a booking by id alone. Every read and write is keyed on the booking *and* the
@@ -184,7 +193,7 @@ the provider to wonder why nobody can find them.
 | Read | RDS | This provider's incoming queue, joined to the requester and filterable by status | `GET /provider/bookings` → `bookingRepository.findIncomingForProvider` |
 | Read | RDS | Match count, and the per-status counts the filter menu shows | `GET /provider/bookings` → `countIncomingForProvider`, `countByStatusForProvider` |
 | Read | RDS | One incoming request and its history, only if this provider owns the underlying service | `GET /provider/bookings/:id` → `bookingRepository.findForProvider` |
-| Read | DDB | The whole history of one booking | `GET /provider/bookings/:id` → `timelineRepository.listEvents` |
+| Read | DDB / API Gateway + Lambda (MS-3, Task 2) | The whole history of one booking | `GET /provider/bookings/:id` → `providerBookingService.findForProvider` → `timelineGateway.fetchTimeline` (see F2 for the full MS-3 note) |
 | Update | RDS | `bookings.status` → `accepted`, guarded on the row still being `pending` and the service belonging to this provider | `POST /provider/bookings/:id/accept` → `bookingRepository.setProviderDecision` |
 | Create | DDB | `BOOKING_ACCEPTED` timeline event, written only when a row actually changed | `POST /provider/bookings/:id/accept` → `timelineRepository.appendEvent` |
 | Update | RDS | `bookings.status` → `rejected`, same guard | `POST /provider/bookings/:id/reject` → `bookingRepository.setProviderDecision` |
@@ -304,7 +313,7 @@ than an import reaching into a file that has not been written.
 | Read | RDS | One page of bookings in one of three states — awaiting assignment, assigned, completed | `GET /coordinator/bookings` → `assignmentRepository.findForCoordinator` |
 | Read | RDS | Match count, and the count behind each of the three tabs | `GET /coordinator/bookings` → `countForCoordinator`, `countsByView` |
 | Read | RDS | One booking with its service, provider, requester and assignment (if any) | `GET /coordinator/bookings/:id` → `assignmentRepository.findDetail` |
-| Read | DDB | The whole history of one booking | `GET /coordinator/bookings/:id` → `timelineRepository.listEvents` |
+| Read | DDB / API Gateway + Lambda (MS-3, Task 2) | The whole history of one booking | `GET /coordinator/bookings/:id` → `coordinatorBookingService.findDetail` → `timelineGateway.fetchTimeline` (see F2 for the full MS-3 note) |
 | Create | RDS | `assignments` row, and `bookings.status` → `assigned` in the same transaction | `POST /coordinator/bookings/:id/assign` → `assignmentRepository.createAssignment` |
 | Create | DDB | `VOLUNTEER_ASSIGNED` timeline event, written only when the assignment actually happened | `POST /coordinator/bookings/:id/assign` → `timelineRepository.appendEvent` |
 

@@ -41,6 +41,10 @@ const schema = z.object({
   // own direct DynamoDB query (the pre-Task-2 behaviour) whenever it is unset or unreachable.
   REPORTS_API_URL: z.string().optional(),
 
+  // Task 2, MS-3 (docs/task2-plan.md). Same optional-and-falls-back shape as REPORTS_API_URL,
+  // for the same reason: see src/services/timelineGateway.js.
+  TIMELINE_API_URL: z.string().optional(),
+
   SESSION_SECRET: z.string().min(32, 'SESSION_SECRET must be at least 32 characters'),
   SESSION_TTL_SECONDS: z.coerce.number().int().positive().default(60 * 60 * 8),
 
@@ -106,6 +110,10 @@ module.exports = {
 
   reports: {
     recentlyCompletedApiUrl: env.REPORTS_API_URL || null,
+  },
+
+  timeline: {
+    apiUrl: env.TIMELINE_API_URL || null,
   },
 
   session: {

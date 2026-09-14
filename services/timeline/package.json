@@ -1,0 +1,11 @@
+{
+  "name": "bridgeability-timeline-service",
+  "version": "1.0.0",
+  "description": "MS-3: serves one booking's DynamoDB history behind API Gateway",
+  "private": true,
+  "main": "index.js",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.700.0",
+    "@aws-sdk/lib-dynamodb": "^3.700.0"
+  }
+}
