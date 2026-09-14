@@ -1,7 +1,17 @@
 'use strict';
 
-
-
+/**
+ * Client-side form validation and the registration form's role-dependent sections.
+ *
+ * This is an enhancement and nothing depends on it. Forms carry `novalidate` so the browser's
+ * own bubbles do not compete with our messages, and every rule below is also enforced by zod
+ * on the server -- these checks make the feedback immediate, they do not make it trustworthy.
+ * With scripting off the form still submits and the server still rejects bad input.
+ *
+ * The markup it writes into is the same markup the server renders on a failed submission:
+ * the same .field__error element, the same aria-describedby wiring, the same error summary.
+ * A user cannot tell which side produced the message, and there is only one thing to test.
+ */
 (function () {
   var forms = document.querySelectorAll('form[data-validate]');
   if (forms.length === 0) return;
@@ -21,7 +31,8 @@
     errorElement.hidden = false;
     control.setAttribute('aria-invalid', 'true');
 
-
+    // The error element always exists in the markup, so its id is already listed in
+    // aria-describedby; nothing needs rewiring when it becomes visible.
   }
 
   function clearError(control) {
@@ -34,13 +45,14 @@
     control.removeAttribute('aria-invalid');
   }
 
-
+  /** Returns a message, or null when the control is acceptable. */
   function validate(control) {
     var value = control.value.trim();
     var label = control.closest('.field').querySelector('label').textContent.trim();
 
     if (control.required && value === '') {
-
+      // A field can author its own wording where the label does not make a readable
+      // sentence -- "Enter your confirm password" being the obvious one.
       return control.getAttribute('data-required-message')
         || 'Enter your ' + label.replace(/\s*\(optional\)$/, '').toLowerCase() + '.';
     }
@@ -68,8 +80,11 @@
     return null;
   }
 
-
-
+  /**
+   * Only validates controls the user has actually finished with. Validating everything as
+   * soon as the page loads, or on every keystroke, tells someone their email is invalid while
+   * they are still typing the first character of it.
+   */
   function attachBlurValidation(form) {
     form.addEventListener('blur', function (event) {
       var control = event.target;
@@ -89,15 +104,19 @@
       if (!control.matches('.input, .textarea, .select')) return;
 
       control.dataset.touched = 'true';
-
+      // Clear a message as soon as the user starts fixing it, rather than making them
+      // submit again to find out whether they have.
       if (control.getAttribute('aria-invalid') === 'true' && !validate(control)) {
         clearError(control);
       }
     });
   }
 
-
-
+  /**
+   * On submit, collect every problem, rebuild the summary at the top, and move focus to it.
+   * Focus is what makes the failure perceivable to a screen reader user; without it the page
+   * simply does not appear to respond.
+   */
   function attachSubmitValidation(form) {
     form.addEventListener('submit', function (event) {
       var controls = form.querySelectorAll('.input, .textarea, .select');
@@ -171,8 +190,11 @@
     summary.focus();
   }
 
-
-
+  /**
+   * Registration only: hide whichever section does not apply to the selected role. The server
+   * renders both visible, so this narrowing is purely an enhancement -- see the comment in
+   * views/auth/register.ejs for why that direction matters.
+   */
   function attachRolePanels(form) {
     var choices = form.querySelectorAll('[data-role-choice]');
     var panels = form.querySelectorAll('[data-role-panel]');
@@ -200,7 +222,8 @@
     attachRolePanels(form);
   });
 
-
+  // If the server rendered a summary, put focus on it for the same reason: the user has just
+  // navigated and needs to know why they are back on the form.
   var serverSummary = document.querySelector('[data-error-summary]');
   if (serverSummary) {
     serverSummary.focus();

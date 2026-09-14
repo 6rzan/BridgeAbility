@@ -4,7 +4,7 @@ const mysqlPool = require('../data/mysql/pool');
 const dynamoClient = require('../data/dynamo/client');
 const s3Client = require('../data/s3/client');
 
-
+/** Probe one dependency, converting a throw into a reported failure rather than a 500. */
 async function probe(name, ping) {
   const startedAt = Date.now();
   try {
@@ -15,8 +15,13 @@ async function probe(name, ping) {
   }
 }
 
-
-
+/**
+ * GET /health
+ *
+ * Reports each cloud dependency separately so a deploy problem can be localised to one
+ * service instead of showing a single opaque "unhealthy". Returns 503 if any is down, which
+ * is what the Beanstalk load balancer needs in order to pull a bad instance out of service.
+ */
 async function getHealth(req, res, next) {
   try {
     const dependencies = await Promise.all([

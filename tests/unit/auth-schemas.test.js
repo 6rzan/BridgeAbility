@@ -24,11 +24,12 @@ test('registration accepts a requester with the minimum fields', () => {
   const result = registerSchema.safeParse(validRegistration);
   assert.equal(result.success, true);
   assert.equal(result.data.role, 'requester');
-
+  // Optional text becomes null rather than an empty string, so it reaches MySQL as NULL.
   assert.equal(result.data.phone, null);
 });
 
-
+// This is the whole privilege-escalation defence at registration. If the enum ever grows,
+// this test fails and says so.
 test('registration refuses to create an admin or coordinator account', () => {
   for (const role of ['admin', 'coordinator']) {
     expectFailure(registerSchema, { ...validRegistration, role }, 'role');
@@ -71,7 +72,8 @@ test('registration rejects a malformed email address', () => {
   expectFailure(registerSchema, { ...validRegistration, email: 'aisha at example' }, 'email');
 });
 
-
+// Emails are compared against a UNIQUE column, so two spellings of the same address must not
+// be able to produce two accounts.
 test('email is trimmed and lowercased before it reaches the database', () => {
   const result = registerSchema.safeParse({
     ...validRegistration,
@@ -82,7 +84,7 @@ test('email is trimmed and lowercased before it reaches the database', () => {
 });
 
 test('sign-in applies no length rule to the password', () => {
-
+  // A rule here would tell someone their guess was "too short" -- feedback about a secret.
   const result = loginSchema.safeParse({ email: 'a@b.co', password: 'x' });
   assert.equal(result.success, true);
 });

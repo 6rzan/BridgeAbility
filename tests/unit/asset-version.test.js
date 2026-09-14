@@ -17,7 +17,8 @@ function hashOf(relativePath) {
   return crypto.createHash('sha256').update(contents).digest('hex').slice(0, 10);
 }
 
-
+// The whole point: the URL has to change when the bytes change, or a returning visitor keeps
+// last deploy's stylesheet against this deploy's markup. That defect was live once already.
 test('the URL carries a hash of the file that is actually on disk', () => {
   assert.equal(asset('/css/main.css'), `/css/main.css?v=${hashOf('css/main.css')}`);
   assert.equal(asset('/js/a11y.js'), `/js/a11y.js?v=${hashOf('js/a11y.js')}`);
@@ -27,17 +28,17 @@ test('two different files get two different hashes', () => {
   assert.notEqual(asset('/css/main.css'), asset('/js/a11y.js'));
 });
 
-
+// Memoised, so the second call must not disagree with the first.
 test('the same path yields the same URL every time', () => {
   assert.equal(asset('/js/form-validate.js'), asset('/js/form-validate.js'));
 });
 
-
+// A broken reference should 404 as it always would, not take the whole page down with it.
 test('a missing asset falls back to the plain path', () => {
   assert.equal(asset('/css/does-not-exist.css'), '/css/does-not-exist.css');
 });
 
-
+// The helper turns a string into a file read, so it must refuse to leave src/public.
 test('a traversal attempt reads nothing and returns the path unchanged', () => {
   assert.equal(asset('/../config/index.js'), '/../config/index.js');
   assert.equal(asset('/../../package.json'), '/../../package.json');

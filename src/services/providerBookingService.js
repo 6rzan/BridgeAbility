@@ -11,12 +11,21 @@ const {
   STATUS_EXPLANATIONS,
 } = require('../validation/bookingSchemas');
 
-
-
+/**
+ * A provider's incoming booking requests (F4) -- accept or reject, nothing else.
+ *
+ * There is no column on `bookings` a provider is entitled to edit: `requested_datetime` and
+ * `notes` are the requester's own input, and no route anywhere lets a provider change them.
+ * "Update" in this functionality's name is the status transition itself.
+ *
+ * appendEventSafely, decorate's timestamp shaping and the page-arithmetic helper are all reused
+ * from bookingService (F2) rather than re-implemented -- they are generic to a booking, not
+ * specific to the requester's half of the flow.
+ */
 
 const PER_PAGE = bookingService.PER_PAGE;
 
-
+/** A provider-side decoration: no cancel affordance, but accept/reject visibility instead. */
 function decorate(booking) {
   return {
     ...booking,
@@ -29,7 +38,7 @@ function decorate(booking) {
   };
 }
 
-
+/** One page of this provider's incoming requests, with the counts the filter menu shows. */
 async function listIncoming(providerId, { status, page }) {
   const totalItems = await bookingRepository.countIncomingForProvider(providerId, { status });
   const pagination = bookingService.paginate(totalItems, page, PER_PAGE);
@@ -50,8 +59,11 @@ async function listIncoming(providerId, { status, page }) {
   };
 }
 
-
-
+/**
+ * One incoming request and its history, or null if it is not against a listing this provider
+ * owns. A DynamoDB read failure degrades to an empty timeline -- the status in MySQL is the
+ * fact the provider needs, the history is how it got there.
+ */
 async function findForProvider(bookingId, providerId) {
   const booking = await bookingRepository.findForProvider(bookingId, providerId);
 
@@ -80,8 +92,13 @@ async function findForProvider(bookingId, providerId) {
   };
 }
 
-
-
+/**
+ * Accept or reject a pending request.
+ *
+ * The guard is setProviderDecision's own UPDATE (see bookingRepository), so this cannot act on
+ * a request the requester has already cancelled or that another tab already decided. Only a
+ * decision that actually changed a row writes a timeline event.
+ */
 async function decide({ bookingId, provider, actor, decision }) {
   const booking = await bookingRepository.findForProvider(bookingId, provider.provider_id);
 

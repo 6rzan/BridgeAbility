@@ -1,6 +1,6 @@
 'use strict';
 
-
+/** 404 handler -- runs when no route matched. */
 function notFound(req, res) {
   res.status(404);
   if (req.accepts('html')) {
@@ -13,8 +13,12 @@ function notFound(req, res) {
   return res.json({ error: 'Not found' });
 }
 
-
-
+/**
+ * Central error handler.
+ *
+ * Internal error details are logged server-side but never sent to the browser, so a stack
+ * trace or SQL fragment cannot leak to a user.
+ */
 function errorHandler(error, req, res, next) {
   if (res.headersSent) {
     return next(error);

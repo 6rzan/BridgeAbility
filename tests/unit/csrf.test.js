@@ -32,7 +32,7 @@ function makeResponse() {
   };
 }
 
-
+/** Runs the middleware and returns the error it passed to next(), or null. */
 function run(req, res) {
   let captured = null;
   csrfProtection(req, res, (error) => { captured = error || null; });
@@ -47,7 +47,8 @@ test('tokensMatch rejects a mismatch, a length difference and a non-string', () 
   assert.equal(tokensMatch('abc', 'abc'), true);
 });
 
-
+// An empty cookie and an empty submitted field are equal as strings. Treating that as a match
+// would turn "no token at all" into a pass.
 test('tokensMatch rejects two empty strings', () => {
   assert.equal(tokensMatch('', ''), false);
 });
@@ -106,7 +107,8 @@ test('a POST carrying the matching token in the header is allowed', () => {
   assert.equal(error, null);
 });
 
-
+// This is the attack the middleware exists to stop: a cross-site form makes the browser send
+// our cookie, but the attacker cannot read it, so the body field cannot match.
 test('a POST with the cookie but no submitted token is rejected with 403', () => {
   const error = run(
     makeRequest({ method: 'POST', cookies: { [COOKIE_NAME]: 'token-abc' }, body: {} }),

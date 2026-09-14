@@ -11,7 +11,7 @@ const {
   COMPLETION_LABELS,
 } = require('../../src/validation/assignmentSchemas');
 
-
+// --- completionUpdateSchema --------------------------------------------------------
 
 test('each of the three completion statuses is accepted', () => {
   for (const completionStatus of COMPLETION_STATUSES) {
@@ -54,7 +54,11 @@ test('a missing status is rejected rather than defaulted', () => {
   assert.equal(parsed.success, false);
 });
 
-
+// --- COMPLETION_LABELS completeness ------------------------------------------------
+//
+// The same class of lock-step check as bookingSchemas.js's STATUS_LABELS/STATUS_EXPLANATIONS
+// pair and adminReportService.js's own COMPLETION_LABELS (a small intentional duplicate of
+// this one, written before F8 existed -- see docs/crud-matrix.md's F6 section).
 
 test('every completion status has a label', () => {
   for (const status of COMPLETION_STATUSES) {

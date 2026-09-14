@@ -2,8 +2,12 @@
 
 const userRepository = require('../data/mysql/userRepository');
 
-
-
+/**
+ * The signed-in landing page. Each role sees its own summary.
+ *
+ * Role tasks are added to this map by the functionality that implements them, so a link never
+ * appears before the route behind it exists.
+ */
 const ROLE_SUMMARY = {
   requester: {
     heading: 'Requester',
@@ -40,11 +44,12 @@ const ROLE_SUMMARY = {
 
 async function getDashboard(req, res, next) {
   try {
-
+    // Re-read the user rather than trusting the session snapshot: a provider approved by an
+    // administrator five minutes ago must see that here without signing out and back in.
     const record = await userRepository.findById(req.session.user.id);
 
     if (!record) {
-
+      // The account was deleted while the session was alive. Nothing to show it, so end it.
       return req.session.destroy(() => res.redirect('/login'));
     }
 

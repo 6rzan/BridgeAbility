@@ -12,7 +12,10 @@ const {
   buildQueryString,
 } = require('../../src/controllers/providerBookingController');
 
-
+// --- parseBookingId ------------------------------------------------------------
+//
+// The id comes straight off the URL, so anything that is not a positive integer must simply
+// not be a booking -- the same reasoning as providerServiceController.parseServiceId.
 
 test('a positive integer string is a valid booking id', () => {
   assert.equal(parseBookingId('7'), 7);
@@ -28,7 +31,11 @@ test('anything that is not a positive integer is not a booking id', () => {
   assert.equal(parseBookingId(undefined), null);
 });
 
-
+// --- parsePage / buildQueryString -----------------------------------------------
+//
+// Copied in shape from bookingController's own helpers (F2) rather than imported, because the
+// two lists are independent URLs with independent query strings; the logic is identical but
+// there is no shared "pagination" module either side already depends on.
 
 test('an invalid page number falls back to page 1', () => {
   assert.equal(parsePage('0'), 1);
@@ -48,7 +55,11 @@ test('the query string carries only the filters actually in force', () => {
   assert.equal(buildQueryString('pending', { page: 1 }), '?status=pending');
 });
 
-
+// --- decorate --------------------------------------------------------------------
+//
+// canDecide is what the view uses to decide whether to show the accept/reject forms at all --
+// getting this wrong either hides a legitimate action or offers one the guarded UPDATE would
+// refuse anyway.
 
 test('a pending request can be decided; nothing else can', () => {
   const base = {
