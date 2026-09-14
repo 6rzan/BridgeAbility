@@ -20,7 +20,10 @@ function sqsRecord(publishedMessage) {
     body: JSON.stringify({
       Type: 'Notification',
       MessageId: 'sns-msg-1',
-      TopicArn: 'arn:aws:sns:us-east-1:000000000000:bridgeability-booking-events',
+      // Not a real ARN shape (12-digit account id) on purpose -- scripts/secret-scan.sh flags any
+    // ARN-shaped 12-digit number, no exceptions, and this test does not need a realistic one to
+    // exercise parseRecord's envelope-unwrapping.
+    TopicArn: 'arn:aws:sns:us-east-1:test-account:bridgeability-booking-events',
       Message: JSON.stringify(publishedMessage),
       Timestamp: '2026-09-15T02:00:00.000Z',
     }),
