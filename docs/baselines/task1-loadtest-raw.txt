@@ -1,0 +1,24 @@
+loadtest: BASE_URL=http://bridgeability-task1-env.eba-nv5jiddt.us-east-1.elasticbeanstalk.com duration=20s connections=10
+
+signing in as requester and admin demo accounts...
+signed in.
+
+== GET /services (public) ==
+requests: 401 total, 20.1/sec avg | latency: 494.2ms avg, 4186ms p99 | errors: 0, timeouts: 0, non-2xx: 0
+
+== GET /services/1 (public) ==
+requests: 484 total, 24.2/sec avg | latency: 412.2ms avg, 2141ms p99 | errors: 0, timeouts: 0, non-2xx: 0
+
+== GET /bookings/1 (authenticated, requester) ==
+requests: 470 total, 23.5/sec avg | latency: 422.4ms avg, 2156ms p99 | errors: 0, timeouts: 0, non-2xx: 0
+
+== GET /admin/reports (authenticated, admin) ==
+requests: 505 total, 25.3/sec avg | latency: 388.0ms avg, 1788ms p99 | errors: 0, timeouts: 0, non-2xx: 0
+
+== POST /bookings/1/cancel (authenticated, requester -- mutates once, see file header) (custom runner -- see file header, autocannon bug) ==
+requests: 627 total, 31.4/sec avg | latency: 319.6ms avg, 617ms p99 | errors: 0, timeouts: 0, non-2xx: 0
+
+loadtest: done. Paste the per-target summary lines above into the Section 3
+comparison table alongside the matching CloudWatch/X-Ray screenshots.
+
+[exited with code 0]

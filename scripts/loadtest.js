@@ -139,6 +139,60 @@ async function runTarget(name, opts) {
   return result;
 }
 
+/**
+ * A hand-rolled concurrent runner, used only for the status-change target. Not a style choice:
+ * autocannon 8.0.0 has a real bug where a request carrying two custom headers whose VALUES
+ * share an identical substring gets corrupted into a 404, which is exactly what a double-submit
+ * CSRF request looks like (the same token in both `cookie` and `x-csrf-token`).
+ *
+ * Diagnosed by isolation against this live environment, not assumed: a bare POST (no headers)
+ * gets the expected 403; `cookie` alone gets 403; `x-csrf-token` alone gets 403; `cookie` +
+ * `x-csrf-token` set to an unrelated dummy string gets 403; only `cookie` + the SAME token
+ * value repeated in `x-csrf-token` produces a 404. curl sent with the identical header values
+ * gets the correct 302. No newer autocannon version exists to upgrade to (8.0.0 is latest).
+ *
+ * This reuses the same `fetch` this script already uses for sign-in -- which does not have the
+ * bug -- fanning it out over `connections` concurrent loops for `duration` seconds, and reports
+ * the same shape runTarget does so the two are comparable in the write-up.
+ */
+async function runFetchTarget(name, { path, method = 'GET', headers = {} }) {
+  console.log(`\n== ${name} (custom runner -- see file header, autocannon bug) ==`);
+  const url = new URL(path, baseUrl);
+  const latencies = [];
+  const statusCounts = { '2xx': 0, '3xx': 0, '4xx': 0, '5xx': 0 };
+  let errors = 0;
+  const deadline = Date.now() + duration * 1000;
+
+  async function worker() {
+    while (Date.now() < deadline) {
+      const startedAt = Date.now();
+      try {
+        const response = await fetch(url, { method, headers, redirect: 'manual' });
+        await response.arrayBuffer(); // drain the body so the connection is free for the next request
+        latencies.push(Date.now() - startedAt);
+        const bucket = `${Math.floor(response.status / 100)}xx`;
+        if (statusCounts[bucket] !== undefined) statusCounts[bucket] += 1;
+      } catch {
+        errors += 1;
+      }
+    }
+  }
+
+  await Promise.all(Array.from({ length: connections }, worker));
+
+  latencies.sort((a, b) => a - b);
+  const total = latencies.length;
+  const average = total ? latencies.reduce((sum, value) => sum + value, 0) / total : 0;
+  const p99 = total ? latencies[Math.min(total - 1, Math.floor(total * 0.99))] : 0;
+
+  console.log(
+    `requests: ${total} total, ${(total / duration).toFixed(1)}/sec avg | `
+    + `latency: ${average.toFixed(1)}ms avg, ${p99}ms p99 | `
+    + `errors: ${errors}, timeouts: 0, non-2xx: ${statusCounts['4xx'] + statusCounts['5xx']}`,
+  );
+  return { total, average, p99, errors, statusCounts };
+}
+
 async function main() {
   console.log(`loadtest: BASE_URL=${baseUrl} duration=${duration}s connections=${connections}`);
 
@@ -171,7 +225,7 @@ async function main() {
     headers: { cookie: admin.cookie },
   });
 
-  results.statusChange = await runTarget('POST /bookings/1/cancel (authenticated, requester -- mutates once, see file header)', {
+  results.statusChange = await runFetchTarget('POST /bookings/1/cancel (authenticated, requester -- mutates once, see file header)', {
     method: 'POST',
     path: '/bookings/1/cancel',
     headers: {
