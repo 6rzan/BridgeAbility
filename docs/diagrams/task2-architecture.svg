@@ -1,0 +1,143 @@
+<svg width="1300" height="1000" viewBox="0 0 1300 1000" xmlns="http://www.w3.org/2000/svg" role="img" font-family="Arial, Helvetica, sans-serif">
+  <title>BridgeAbility — Task 2 architecture</title>
+  <desc>The Task 1 monolith unchanged at the top, with three serverless additions below: booking and provider decisions publish to an SNS topic that fans out to an SQS queue and a dead-letter queue consumed by a notification Lambda; the admin report's recently-completed panel and a booking's timeline are each served through API Gateway by their own Lambda; all three Lambdas and the monolith itself read and write the same shared DynamoDB table at the centre of the diagram.</desc>
+
+  <defs>
+    <marker id="arrow2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M1 1L9 5L1 9" fill="none" stroke="#444444" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrowRed" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M1 1L9 5L1 9" fill="none" stroke="#a33" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1300" height="1000" fill="#ffffff"/>
+
+  <text x="650" y="26" text-anchor="middle" font-size="18" font-weight="bold" fill="#1a1a1a">Task 2 — serverless components and microservices added onto the Task 1 monolith</text>
+
+  <!-- ===================== TASK 1 CORE (unchanged) ===================== -->
+
+  <rect x="530" y="42" width="240" height="58" rx="6" fill="#ECECEC" stroke="#888888" stroke-width="1"/>
+  <text x="650" y="66" text-anchor="middle" font-size="14" font-weight="bold" fill="#222222">Browser</text>
+  <text x="650" y="84" text-anchor="middle" font-size="12" fill="#444444">EJS pages, progressive fetch</text>
+
+  <rect x="310" y="130" width="440" height="220" rx="8" fill="none" stroke="#999999" stroke-width="1.5" stroke-dasharray="6,4"/>
+  <text x="330" y="150" font-size="12" font-weight="bold" fill="#666666">VPC — RDS reachable only from the app security group</text>
+
+  <rect x="330" y="164" width="400" height="90" rx="6" fill="#FDE9D9" stroke="#D9822B" stroke-width="1.5"/>
+  <text x="530" y="190" text-anchor="middle" font-size="14" font-weight="bold" fill="#7A4A14">Elastic Beanstalk</text>
+  <text x="530" y="209" text-anchor="middle" font-size="12" fill="#7A4A14">Express + EJS monolith, unchanged from Task 1</text>
+  <text x="530" y="226" text-anchor="middle" font-size="11" fill="#7A4A14">now also publishes to SNS and calls API Gateway</text>
+
+  <rect x="330" y="290" width="400" height="50" rx="6" fill="#E3ECF7" stroke="#3B72B0" stroke-width="1.5"/>
+  <text x="530" y="320" text-anchor="middle" font-size="13" font-weight="bold" fill="#1F4E85">Amazon RDS for MySQL 8 — unchanged</text>
+
+  <rect x="810" y="164" width="340" height="80" rx="6" fill="#E5F2E6" stroke="#4C9A4C" stroke-width="1.5"/>
+  <text x="980" y="192" text-anchor="middle" font-size="13" font-weight="bold" fill="#2E6B2E">Amazon S3 — unchanged</text>
+  <text x="980" y="211" text-anchor="middle" font-size="11" fill="#2E6B2E">Block Public Access on, presigned URLs only</text>
+  <text x="980" y="228" text-anchor="middle" font-size="11" fill="#2E6B2E">bidirectional to Browser as in Task 1 (not redrawn)</text>
+
+  <!-- Task 1 arrows -->
+  <path d="M650,100 L650,118 L530,118 L530,164" fill="none" stroke="#444444" stroke-width="1.6" marker-end="url(#arrow2)"/>
+  <path d="M530,254 L530,290" fill="none" stroke="#444444" stroke-width="1.6" marker-end="url(#arrow2)"/>
+  <path d="M730,192 L810,192" fill="none" stroke="#444444" stroke-width="1.6" marker-end="url(#arrow2)"/>
+
+  <!-- EB -> DynamoDB hub (existing Task 1 relationship: sessions, timeline reads/writes) -->
+  <path d="M745,254 L745,600 L680,600" fill="none" stroke="#444444" stroke-width="1.6" marker-end="url(#arrow2)"/>
+  <text x="752" y="440" font-size="11" fill="#444444">sessions, timeline</text>
+  <text x="752" y="454" font-size="11" fill="#444444">(unchanged from Task 1)</text>
+
+  <!-- EB -> SNS (new) -->
+  <path d="M330,184 L170,184 L170,500" fill="none" stroke="#444444" stroke-width="1.6" marker-end="url(#arrow2)"/>
+  <text x="180" y="178" font-size="11" fill="#444444">SNS Publish — new, never fails the request</text>
+
+  <!-- EB -> API Gateway (new) -->
+  <path d="M730,220 L780,220 L780,420 L1040,420 L1040,500" fill="none" stroke="#444444" stroke-width="1.6" marker-end="url(#arrow2)"/>
+  <text x="850" y="414" font-size="11" fill="#444444">HTTPS — new, falls back to a direct DynamoDB read on failure</text>
+
+  <!-- ===================== DIVIDER ===================== -->
+  <line x1="30" y1="470" x2="1270" y2="470" stroke="#cccccc" stroke-width="1"/>
+  <text x="30" y="492" font-size="13" font-weight="bold" fill="#a33">Task 2 additions — serverless components and microservices</text>
+
+  <!-- ===================== MS-1: notification path (left) ===================== -->
+
+  <rect x="30" y="500" width="330" height="300" rx="8" fill="none" stroke="#c99" stroke-width="1.2" stroke-dasharray="5,4"/>
+  <text x="46" y="520" font-size="12" font-weight="bold" fill="#a33">MS-1 — Notification Service (Abubaker)</text>
+
+  <rect x="40" y="536" width="260" height="64" rx="6" fill="#F6E1EE" stroke="#B0468A" stroke-width="1.5"/>
+  <text x="170" y="560" text-anchor="middle" font-size="13" font-weight="bold" fill="#7A2D62">Amazon SNS</text>
+  <text x="170" y="578" text-anchor="middle" font-size="11" fill="#7A2D62">bridgeability-booking-events</text>
+
+  <rect x="40" y="636" width="180" height="64" rx="6" fill="#F6E1EE" stroke="#B0468A" stroke-width="1.5"/>
+  <text x="130" y="660" text-anchor="middle" font-size="13" font-weight="bold" fill="#7A2D62">Amazon SQS</text>
+  <text x="130" y="678" text-anchor="middle" font-size="11" fill="#7A2D62">batch size 10</text>
+
+  <rect x="250" y="636" width="100" height="64" rx="6" fill="#FBEAEA" stroke="#a33" stroke-width="1.2" stroke-dasharray="4,3"/>
+  <text x="300" y="660" text-anchor="middle" font-size="11" font-weight="bold" fill="#a33">DLQ</text>
+  <text x="300" y="676" text-anchor="middle" font-size="10" fill="#a33">5 failed</text>
+  <text x="300" y="688" text-anchor="middle" font-size="10" fill="#a33">receives</text>
+
+  <rect x="40" y="736" width="260" height="54" rx="6" fill="#FDE9D9" stroke="#D9822B" stroke-width="1.5"/>
+  <text x="170" y="758" text-anchor="middle" font-size="12" font-weight="bold" fill="#7A4A14">Lambda — bridgeability-notification</text>
+  <text x="170" y="776" text-anchor="middle" font-size="11" fill="#7A4A14">writes one notification item</text>
+
+  <path d="M170,600 L170,636" fill="none" stroke="#444444" stroke-width="1.6" marker-end="url(#arrow2)"/>
+  <path d="M220,668 L250,668" fill="none" stroke="#a33" stroke-width="1.4" stroke-dasharray="4,3" marker-end="url(#arrowRed)"/>
+  <path d="M130,700 L130,736" fill="none" stroke="#444444" stroke-width="1.6" marker-end="url(#arrow2)"/>
+
+  <!-- ===================== DynamoDB hub (bottom-centre) ===================== -->
+
+  <rect x="440" y="600" width="280" height="150" rx="6" fill="#E3ECF7" stroke="#3B72B0" stroke-width="1.5"/>
+  <text x="580" y="628" text-anchor="middle" font-size="13" font-weight="bold" fill="#1F4E85">Amazon DynamoDB</text>
+  <text x="580" y="648" text-anchor="middle" font-size="11" fill="#1F4E85">BridgeAbility_Sessions</text>
+  <text x="580" y="665" text-anchor="middle" font-size="11" fill="#1F4E85">BridgeAbility_BookingTimeline</text>
+  <text x="580" y="682" text-anchor="middle" font-size="11" fill="#1F4E85">(GSI-1 status, GSI-2 providerId)</text>
+  <text x="580" y="699" text-anchor="middle" font-size="11" fill="#1F4E85">BridgeAbility_Notifications — new</text>
+  <text x="580" y="718" text-anchor="middle" font-size="10" fill="#1F4E85">read/written by the monolith and all three Lambdas</text>
+  <text x="580" y="734" text-anchor="middle" font-size="10" fill="#1F4E85">shown here as one shared node for clarity</text>
+
+  <!-- Lambda-MS1 -> DynamoDB -->
+  <path d="M300,763 L410,763 L410,700 L440,700" fill="none" stroke="#444444" stroke-width="1.6" marker-end="url(#arrow2)"/>
+
+  <!-- ===================== MS-2 / MS-3: API Gateway path (right) ===================== -->
+
+  <rect x="900" y="500" width="370" height="300" rx="8" fill="none" stroke="#99c" stroke-width="1.2" stroke-dasharray="5,4"/>
+  <text x="916" y="520" font-size="12" font-weight="bold" fill="#3B4E9A">MS-2 (Lama) and MS-3 (Noor) — read APIs</text>
+
+  <rect x="910" y="536" width="260" height="88" rx="6" fill="#EDE7F9" stroke="#6E4FA8" stroke-width="1.5"/>
+  <text x="1040" y="558" text-anchor="middle" font-size="13" font-weight="bold" fill="#4A3376">Amazon API Gateway</text>
+  <text x="1040" y="576" text-anchor="middle" font-size="11" fill="#4A3376">GET /reports/recently-completed</text>
+  <text x="1040" y="592" text-anchor="middle" font-size="11" fill="#4A3376">GET /timeline/{bookingId}</text>
+  <text x="1040" y="608" text-anchor="middle" font-size="10" fill="#4A3376">called server-side only, never by the browser</text>
+
+  <rect x="910" y="654" width="260" height="60" rx="6" fill="#FDE9D9" stroke="#D9822B" stroke-width="1.5"/>
+  <text x="1040" y="676" text-anchor="middle" font-size="12" font-weight="bold" fill="#7A4A14">Lambda — bridgeability-reports (MS-2)</text>
+  <text x="1040" y="694" text-anchor="middle" font-size="11" fill="#7A4A14">queries GSI-1 for completed bookings</text>
+
+  <rect x="910" y="744" width="260" height="60" rx="6" fill="#FDE9D9" stroke="#D9822B" stroke-width="1.5"/>
+  <text x="1040" y="766" text-anchor="middle" font-size="12" font-weight="bold" fill="#7A4A14">Lambda — bridgeability-timeline (MS-3)</text>
+  <text x="1040" y="784" text-anchor="middle" font-size="11" fill="#7A4A14">queries one booking's history by PK</text>
+
+  <path d="M1040,624 L1040,654" fill="none" stroke="#444444" stroke-width="1.6" marker-end="url(#arrow2)"/>
+  <path d="M900,570 L860,570 L860,774 L910,774" fill="none" stroke="#444444" stroke-width="1.6" marker-end="url(#arrow2)"/>
+
+  <!-- Lambda-MS2 -> DynamoDB -->
+  <path d="M910,684 L720,684" fill="none" stroke="#444444" stroke-width="1.6" marker-end="url(#arrow2)"/>
+  <!-- Lambda-MS3 -> DynamoDB -->
+  <path d="M900,774 L840,774 L840,720 L720,720" fill="none" stroke="#444444" stroke-width="1.6" marker-end="url(#arrow2)"/>
+
+  <!-- Legend -->
+  <rect x="30" y="850" width="16" height="16" fill="#FDE9D9" stroke="#D9822B"/>
+  <text x="54" y="863" font-size="12" fill="#333333">Compute</text>
+  <rect x="150" y="850" width="16" height="16" fill="#E3ECF7" stroke="#3B72B0"/>
+  <text x="174" y="863" font-size="12" fill="#333333">Database</text>
+  <rect x="270" y="850" width="16" height="16" fill="#E5F2E6" stroke="#4C9A4C"/>
+  <text x="294" y="863" font-size="12" fill="#333333">Storage</text>
+  <rect x="370" y="850" width="16" height="16" fill="#F6E1EE" stroke="#B0468A"/>
+  <text x="394" y="863" font-size="12" fill="#333333">Messaging</text>
+  <rect x="490" y="850" width="16" height="16" fill="#EDE7F9" stroke="#6E4FA8"/>
+  <text x="514" y="863" font-size="12" fill="#333333">API / integration</text>
+
+  <text x="30" y="900" font-size="12" fill="#666666">Every Lambda runs under LabRole (AWS Academy blocks creating custom IAM roles); credentials for every AWS client are resolved by the SDK, never hardcoded.</text>
+  <text x="30" y="920" font-size="12" fill="#666666">X-Ray tracing is on for the monolith and every Lambda; CloudWatch metrics from this environment and the Task 1 baseline feed the Section 3 comparison.</text>
+</svg>

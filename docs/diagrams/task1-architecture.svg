@@ -1,0 +1,73 @@
+<svg width="1040" height="620" viewBox="0 0 1040 620" xmlns="http://www.w3.org/2000/svg" role="img" font-family="Arial, Helvetica, sans-serif">
+  <title>BridgeAbility — Task 1 architecture</title>
+  <desc>A server-based monolith: a browser talks to an Express application on one Elastic Beanstalk instance, which reads and writes Amazon RDS for MySQL inside a VPC, Amazon DynamoDB for sessions and the booking timeline, and Amazon S3 for service images behind presigned URLs.</desc>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M1 1L9 5L1 9" fill="none" stroke="#444444" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1040" height="620" fill="#ffffff"/>
+
+  <text x="520" y="30" text-anchor="middle" font-size="18" font-weight="bold" fill="#1a1a1a">Task 1 — server-based, monolithic architecture</text>
+
+  <!-- Browser -->
+  <rect x="400" y="52" width="240" height="64" rx="6" fill="#ECECEC" stroke="#888888" stroke-width="1"/>
+  <text x="520" y="78" text-anchor="middle" font-size="14" font-weight="bold" fill="#222222">Browser</text>
+  <text x="520" y="98" text-anchor="middle" font-size="12" fill="#444444">EJS pages, progressive fetch</text>
+
+  <!-- VPC boundary -->
+  <rect x="60" y="180" width="500" height="340" rx="8" fill="none" stroke="#999999" stroke-width="1.5" stroke-dasharray="6,4"/>
+  <text x="80" y="204" font-size="12" font-weight="bold" fill="#666666">VPC — RDS reachable only from the app security group</text>
+
+  <!-- Elastic Beanstalk -->
+  <rect x="120" y="224" width="380" height="110" rx="6" fill="#FDE9D9" stroke="#D9822B" stroke-width="1.5"/>
+  <text x="310" y="256" text-anchor="middle" font-size="14" font-weight="bold" fill="#7A4A14">Elastic Beanstalk</text>
+  <text x="310" y="276" text-anchor="middle" font-size="12" fill="#7A4A14">Express + EJS, Node.js 24 on AL2023</text>
+  <text x="310" y="294" text-anchor="middle" font-size="12" fill="#7A4A14">single t3.micro instance</text>
+  <text x="310" y="312" text-anchor="middle" font-size="12" fill="#7A4A14">session · CSRF · authorization checks</text>
+
+  <!-- RDS -->
+  <rect x="120" y="424" width="380" height="80" rx="6" fill="#E3ECF7" stroke="#3B72B0" stroke-width="1.5"/>
+  <text x="310" y="454" text-anchor="middle" font-size="14" font-weight="bold" fill="#1F4E85">Amazon RDS for MySQL 8</text>
+  <text x="310" y="474" text-anchor="middle" font-size="12" fill="#1F4E85">PubliclyAccessible = No · parameterised queries only</text>
+
+  <!-- DynamoDB -->
+  <rect x="660" y="224" width="320" height="110" rx="6" fill="#E3ECF7" stroke="#3B72B0" stroke-width="1.5"/>
+  <text x="820" y="256" text-anchor="middle" font-size="14" font-weight="bold" fill="#1F4E85">Amazon DynamoDB</text>
+  <text x="820" y="276" text-anchor="middle" font-size="12" fill="#1F4E85">BridgeAbility_Sessions</text>
+  <text x="820" y="294" text-anchor="middle" font-size="12" fill="#1F4E85">BridgeAbility_BookingTimeline</text>
+  <text x="820" y="312" text-anchor="middle" font-size="12" fill="#1F4E85">(GSI-1 status, GSI-2 providerId)</text>
+
+  <!-- S3 -->
+  <rect x="660" y="424" width="320" height="80" rx="6" fill="#E5F2E6" stroke="#4C9A4C" stroke-width="1.5"/>
+  <text x="820" y="454" text-anchor="middle" font-size="14" font-weight="bold" fill="#2E6B2E">Amazon S3</text>
+  <text x="820" y="474" text-anchor="middle" font-size="12" fill="#2E6B2E">Block Public Access on · presigned URLs only</text>
+
+  <!-- Arrows -->
+  <path d="M520,116 L520,140 L310,140 L310,224" fill="none" stroke="#444444" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <text x="380" y="134" font-size="12" fill="#444444">HTTPS</text>
+
+  <path d="M310,334 L310,424" fill="none" stroke="#444444" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <text x="322" y="382" font-size="12" fill="#444444">mysql2 pool, port 3306</text>
+
+  <path d="M500,262 L660,262" fill="none" stroke="#444444" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <text x="510" y="254" font-size="12" fill="#444444">AWS SDK v3</text>
+
+  <path d="M500,296 L600,296 L600,464 L660,464" fill="none" stroke="#444444" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <text x="512" y="440" font-size="12" fill="#444444">presigned PUT/GET</text>
+
+  <path d="M640,84 L1000,84 L1000,464 L980,464" fill="none" stroke="#666666" stroke-width="1.4" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+  <text x="902" y="78" font-size="12" fill="#555555">direct upload/download</text>
+
+  <!-- Legend -->
+  <rect x="60" y="548" width="16" height="16" fill="#FDE9D9" stroke="#D9822B"/>
+  <text x="84" y="561" font-size="12" fill="#333333">Compute</text>
+  <rect x="180" y="548" width="16" height="16" fill="#E3ECF7" stroke="#3B72B0"/>
+  <text x="204" y="561" font-size="12" fill="#333333">Database</text>
+  <rect x="300" y="548" width="16" height="16" fill="#E5F2E6" stroke="#4C9A4C"/>
+  <text x="324" y="561" font-size="12" fill="#333333">Storage</text>
+
+  <text x="60" y="596" font-size="12" fill="#666666">Credentials for RDS, DynamoDB and S3 are never in code — the SDK resolves them from the EC2 instance profile (LabInstanceProfile → LabRole).</text>
+</svg>
