@@ -14,6 +14,7 @@ const { query, queryEscaped } = require('./pool');
 const LIST_COLUMNS = `
   p.provider_id, p.org_name, p.description, p.contact, p.verification_doc_s3_key,
   p.status, p.reviewed_by, p.reviewed_at, p.created_at,
+  p.user_id,
   u.full_name AS applicant_name, u.email AS applicant_email
 `;
 

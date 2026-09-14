@@ -3,6 +3,7 @@
 const adminProviderRepository = require('../data/mysql/adminProviderRepository');
 const bookingService = require('./bookingService');
 const { presignGet } = require('../data/s3/client');
+const { EVENT_TYPES, publishBookingEventSafely } = require('./notificationPublisher');
 const { formatWallClock, toKualaLumpur } = require('../validation/bookingSchemas');
 const { PROVIDER_STATUS_LABELS } = require('../validation/adminProviderSchemas');
 
@@ -93,6 +94,15 @@ async function review({ providerId, reviewerId, decision }) {
   if (!changed) {
     return { outcome: 'not-pending', status: provider.status };
   }
+
+  await publishBookingEventSafely({
+    eventType: decision === 'approved' ? EVENT_TYPES.PROVIDER_APPROVED : EVENT_TYPES.PROVIDER_REJECTED,
+    recipientUserId: provider.user_id,
+    message: decision === 'approved'
+      ? `${provider.org_name} is approved. Your listings are now visible to requesters.`
+      : `${provider.org_name}'s registration was not approved.`,
+    detail: { providerId },
+  });
 
   return { outcome: decision, orgName: provider.org_name };
 }

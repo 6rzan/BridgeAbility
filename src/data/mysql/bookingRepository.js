@@ -191,6 +191,7 @@ async function cancelPending(bookingId, requesterId) {
  */
 const PROVIDER_LIST_COLUMNS = `
   b.booking_id, b.status, b.requested_datetime, b.notes, b.created_at,
+  b.requester_id,
   s.service_id, s.title,
   u.full_name AS requester_name, u.phone AS requester_phone
 `;

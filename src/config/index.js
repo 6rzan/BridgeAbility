@@ -29,6 +29,13 @@ const schema = z.object({
   DDB_TIMELINE_TABLE: z.string().min(1),
   DDB_SESSIONS_TABLE: z.string().min(1),
 
+  // Task 2, MS-1 (docs/task2-plan.md). Optional and unset on the Task 1 baseline environment on
+  // purpose: a booking accept/reject or a provider approve/reject must keep working exactly as
+  // it does today even where this microservice has not been deployed, the same "must not fail
+  // the user's action" principle bookingService.appendEventSafely already applies to the
+  // DynamoDB timeline append. See src/services/notificationPublisher.js.
+  SNS_BOOKING_EVENTS_TOPIC_ARN: z.string().optional(),
+
   SESSION_SECRET: z.string().min(32, 'SESSION_SECRET must be at least 32 characters'),
   SESSION_TTL_SECONDS: z.coerce.number().int().positive().default(60 * 60 * 8),
 
@@ -85,6 +92,11 @@ module.exports = {
   dynamo: {
     timelineTable: env.DDB_TIMELINE_TABLE,
     sessionsTable: env.DDB_SESSIONS_TABLE,
+  },
+
+  sns: {
+    // null, not '', when unset -- callers check this with a plain truthiness test.
+    bookingEventsTopicArn: env.SNS_BOOKING_EVENTS_TOPIC_ARN || null,
   },
 
   session: {

@@ -3,6 +3,7 @@
 const bookingRepository = require('../data/mysql/bookingRepository');
 const bookingService = require('./bookingService');
 const timelineRepository = require('../data/dynamo/timelineRepository');
+const { EVENT_TYPES, publishBookingEventSafely } = require('./notificationPublisher');
 const {
   formatWallClock,
   toDatetimeAttribute,
@@ -125,6 +126,15 @@ async function decide({ bookingId, provider, actor, decision }) {
     actorRole: 'provider',
     actorName: actor.name,
     detail: null,
+  });
+
+  await publishBookingEventSafely({
+    eventType: decision === 'accepted' ? EVENT_TYPES.BOOKING_ACCEPTED : EVENT_TYPES.BOOKING_REJECTED,
+    recipientUserId: booking.requester_id,
+    message: decision === 'accepted'
+      ? `Your request for "${booking.title}" was accepted.`
+      : `Your request for "${booking.title}" was declined.`,
+    detail: { bookingId, providerId: provider.provider_id },
   });
 
   return { outcome: decision };
