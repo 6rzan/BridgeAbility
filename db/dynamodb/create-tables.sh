@@ -93,6 +93,7 @@ reconcile_gsis() {
 
 create_table "$here/booking-timeline-table.json"
 create_table "$here/sessions-table.json"
+create_table "$here/notifications-table.json"
 
 # TTL cannot be set at creation time -- it is a separate call, and it errors if TTL is already
 # enabled, so check first. See sessionStore.js for why expiresAt is also enforced in code: TTL

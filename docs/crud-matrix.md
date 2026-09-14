@@ -184,6 +184,11 @@ the provider to wonder why nobody can find them.
 | Create | DDB | `BOOKING_ACCEPTED` timeline event, written only when a row actually changed | `POST /provider/bookings/:id/accept` → `timelineRepository.appendEvent` |
 | Update | RDS | `bookings.status` → `rejected`, same guard | `POST /provider/bookings/:id/reject` → `bookingRepository.setProviderDecision` |
 | Create | DDB | `BOOKING_REJECTED` timeline event, written only when a row actually changed | `POST /provider/bookings/:id/reject` → `timelineRepository.appendEvent` |
+| Create | SNS/SQS/DDB (MS-1, Task 2) | One `BOOKING_ACCEPTED`/`BOOKING_REJECTED` message, published to `bridgeability-booking-events`; MS-1's Lambda writes the notification record | `POST /provider/bookings/:id/accept`\|`reject` → `notificationPublisher.publishBookingEventSafely` → `services/notification/index.js` |
+
+**MS-1 (Task 2).** The publish is a side effect, not the request — same "must not fail the
+user's action" contract as the timeline append above, and a genuine no-op (not an error) on any
+environment where `SNS_BOOKING_EVENTS_TOPIC_ARN` is unset. See `docs/task2-plan.md`, B1.
 
 **What "update" means here.** `bookings` carries no field a provider is entitled to edit —
 `requested_datetime` and `notes` are the requester's own input, and no route anywhere lets a
@@ -215,6 +220,7 @@ matches zero rows and the page tells them the request was already decided.
 | Read | S3 | Short-lived presigned GET for the uploaded verification document | `GET /admin/providers/:id` → `adminProviderService.attachDocUrl` → `presignGet` |
 | Update | RDS | `providers.status` → `approved`, `reviewed_by`, `reviewed_at`, guarded on the row still being `pending` | `POST /admin/providers/:id/approve` → `adminProviderRepository.decide` |
 | Update | RDS | `providers.status` → `rejected`, same audit fields, same guard | `POST /admin/providers/:id/reject` → `adminProviderRepository.decide` |
+| Create | SNS/SQS/DDB (MS-1, Task 2) | One `PROVIDER_APPROVED`/`PROVIDER_REJECTED` message, published to `bridgeability-booking-events`; MS-1's Lambda writes the notification record | `POST /admin/providers/:id/approve`\|`reject` → `notificationPublisher.publishBookingEventSafely` → `services/notification/index.js` |
 
 **Why this is the second half of F1's visibility rule.** F1's catalogue shows a listing only
 when `p.status = 'approved'` as well as `s.is_active = 1`. A provider can create and edit
