@@ -11,20 +11,84 @@ set -euo pipefail
 region="${AWS_REGION:-us-east-1}"
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Every definition is read with `cat` and handed to Node over stdin, never as a path Node
+# itself resolves. On Windows, `cd ... && pwd` (used for `here` above) produces an MSYS-style
+# path like /c/Users/..., which bash's own file-reading (cat, the `<` redirection below) always
+# understands -- but a *native* Windows Node.js binary does not, so `require('/c/Users/...')`
+# fails with MODULE_NOT_FOUND even though the file is right there. Reading over stdin sidesteps
+# the whole path-format question: bash opens the file however it needs to, Node only ever sees
+# bytes.
+
 create_table() {
   local definition="$1"
+  local json
+  json="$(cat "$definition")"
   local table_name
-  table_name="$(node -e "console.log(require('$definition').TableName)")"
+  table_name="$(node -e "console.log(JSON.parse(require('fs').readFileSync(0, 'utf8')).TableName)" <<< "$json")"
 
   if aws dynamodb describe-table --table-name "$table_name" --region "$region" >/dev/null 2>&1; then
-    echo "dynamodb: $table_name already exists, skipping"
-    return
+    echo "dynamodb: $table_name already exists, skipping creation"
+  else
+    echo "dynamodb: creating $table_name"
+    aws dynamodb create-table --region "$region" --cli-input-json "$json" >/dev/null
+    aws dynamodb wait table-exists --table-name "$table_name" --region "$region"
+    echo "dynamodb: $table_name active"
   fi
 
-  echo "dynamodb: creating $table_name"
-  aws dynamodb create-table --region "$region" --cli-input-json "file://$definition" >/dev/null
-  aws dynamodb wait table-exists --table-name "$table_name" --region "$region"
-  echo "dynamodb: $table_name active"
+  reconcile_gsis "$json" "$table_name"
+}
+
+# create-table only runs once, on a table that does not yet exist -- a table left over from a
+# partial or older provisioning attempt (exactly what this project hit: a BridgeAbility_
+# BookingTimeline table existed with GSI-1 but not GSI-2, from a session that never finished)
+# needs its GSIs reconciled separately, since DynamoDB has no "create table or add whatever is
+# missing" operation. This compares the tracked definition's GSI names against what the live
+# table actually has and adds each one that is missing, one at a time (UpdateTable allows only
+# one GSI change per call).
+reconcile_gsis() {
+  local json="$1"
+  local table_name="$2"
+
+  local wanted_names
+  wanted_names="$(node -e "
+    const def = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+    for (const gsi of def.GlobalSecondaryIndexes || []) console.log(gsi.IndexName);
+  " <<< "$json")"
+  [ -z "$wanted_names" ] && return
+
+  # --output text joins multiple values with a TAB, not a space (confirmed directly -- `cat -A`
+  # on real output showed GSI-2^IGSI-1, not GSI-2 GSI-1), so this converts to one name per line
+  # and matches a whole line, rather than assuming a space-separated list.
+  local existing_names
+  existing_names="$(aws dynamodb describe-table --table-name "$table_name" --region "$region" \
+    --query 'Table.GlobalSecondaryIndexes[].IndexName' --output text 2>/dev/null | tr '\t' '\n' || true)"
+
+  while IFS= read -r gsi_name; do
+    [ -z "$gsi_name" ] && continue
+    if printf '%s\n' "$existing_names" | grep -qFx "$gsi_name"; then
+      echo "dynamodb: $table_name.$gsi_name already exists, skipping"
+      continue
+    fi
+
+    echo "dynamodb: $table_name is missing $gsi_name -- adding it"
+    aws dynamodb wait table-exists --table-name "$table_name" --region "$region"
+
+    local update_json
+    update_json="$(GSI_NAME="$gsi_name" node -e "
+      const def = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+      const gsi = def.GlobalSecondaryIndexes.find((g) => g.IndexName === process.env.GSI_NAME);
+      // Every attribute the GSI's own key schema needs, not the whole table's attribute list --
+      // UpdateTable rejects attribute-definitions for names the update does not actually use.
+      const neededNames = new Set(gsi.KeySchema.map((k) => k.AttributeName));
+      const attrs = def.AttributeDefinitions.filter((a) => neededNames.has(a.AttributeName));
+      console.log(JSON.stringify({ AttributeDefinitions: attrs, GlobalSecondaryIndexUpdates: [{ Create: gsi }] }));
+    " <<< "$json")"
+
+    aws dynamodb update-table --table-name "$table_name" --region "$region" \
+      --cli-input-json "$update_json" >/dev/null
+    aws dynamodb wait table-exists --table-name "$table_name" --region "$region"
+    echo "dynamodb: $table_name.$gsi_name created (backfilling in the background if the table already has items)"
+  done <<< "$wanted_names"
 }
 
 create_table "$here/booking-timeline-table.json"

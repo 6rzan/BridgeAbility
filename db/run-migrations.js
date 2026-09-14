@@ -130,16 +130,29 @@ async function runPatches(connection) {
 }
 
 async function main() {
+  const databaseName = process.env.DB_NAME;
+
+  // No `database` here on purpose: a freshly created RDS instance has no schema at all (this
+  // project hit exactly that -- an instance whose DBName was null, from a provisioning session
+  // that never got past this step), and connecting straight to a database that does not exist
+  // yet fails with ER_BAD_DB_ERROR before a single statement runs. Connecting bare and creating
+  // the database as this script's own first step means there is no separate manual "create the
+  // schema" step for anyone to forget.
   const connection = await mysql.createConnection({
     host: process.env.DB_HOST,
     port: Number(process.env.DB_PORT || 3306),
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
     multipleStatements: false,
   });
 
   try {
+    // Backtick-quoted because an identifier cannot be parameterised the way a value can --
+    // safe here because databaseName is this app's own DB_NAME environment variable, never
+    // user input.
+    await connection.query(`CREATE DATABASE IF NOT EXISTS \`${databaseName}\``);
+    await connection.query(`USE \`${databaseName}\``);
+
     await runFile(connection, 'schema.sql');
 
     const [rows] = await connection.query('SELECT COUNT(*) AS total FROM users');
