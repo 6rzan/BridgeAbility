@@ -3,6 +3,7 @@
 const { S3Client, HeadBucketCommand, GetObjectCommand, PutObjectCommand, DeleteObjectCommand } =
   require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+const AWSXRay = require('../../lib/xray');
 const config = require('../../config');
 
 /**
@@ -12,8 +13,13 @@ const config = require('../../config');
  * alone. The browser only ever receives a short-lived presigned URL minted here by the
  * backend using the instance profile's temporary credentials. When the URL expires the
  * object becomes unreachable again -- the bucket itself never changes.
+ *
+ * Wrapped with captureAWSv3Client so every call this client itself makes (deleteObject,
+ * the /health probe) is a subsegment on the request's X-Ray trace. Presigning does not call
+ * the network -- getSignedUrl only computes a signature locally -- so it produces no
+ * subsegment either way; only deleteObject and ping do.
  */
-const client = new S3Client({ region: config.region });
+const client = AWSXRay.captureAWSv3Client(new S3Client({ region: config.region }));
 
 /** Presign a time-limited download of a private object. */
 function presignGet(key, ttlSeconds = config.s3.getTtlSeconds) {

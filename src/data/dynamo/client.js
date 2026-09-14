@@ -2,6 +2,7 @@
 
 const { DynamoDBClient, DescribeTableCommand } = require('@aws-sdk/client-dynamodb');
 const { DynamoDBDocumentClient } = require('@aws-sdk/lib-dynamodb');
+const AWSXRay = require('../../lib/xray');
 const config = require('../../config');
 
 /**
@@ -11,8 +12,13 @@ const config = require('../../config');
  * from the EC2 instance metadata service, which serves the LabInstanceProfile -> LabRole
  * identity attached to the Beanstalk instances. This is why no access key appears anywhere
  * in this repository.
+ *
+ * Wrapped with captureAWSv3Client so every DynamoDB call appears as a subsegment on the
+ * request's X-Ray trace. Wrapping baseClient here, before DynamoDBDocumentClient.from() below,
+ * covers the document client too -- it marshals commands but delegates every .send() to this
+ * same underlying client.
  */
-const baseClient = new DynamoDBClient({ region: config.region });
+const baseClient = AWSXRay.captureAWSv3Client(new DynamoDBClient({ region: config.region }));
 
 /**
  * The document client marshals plain JavaScript objects to and from DynamoDB's typed

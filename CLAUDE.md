@@ -2,7 +2,11 @@
 
 Cloud platform for booking and coordinating accessibility services for persons with
 disabilities in Malaysia. Module CT071-3-3-DDAC, Asia Pacific University, Group 21, Topic 4.
-Scope of this repo: **Task 1 only** — Frontend & Backend Development + Cloud Database Service.
+Originally scoped to **Task 1** — Frontend & Backend Development + Cloud Database Service —
+this repo now also carries **Task 2** — Cloud Service Integration & Monitoring: serverless
+components (API Gateway, Lambda, SNS, SQS) and CloudWatch/X-Ray monitoring layered onto the
+same Task 1 system. See `docs/task2-plan.md` for the plan and `docs/references.md` for what's
+cited where.
 
 ## The one rule that overrides everything
 
@@ -31,6 +35,8 @@ Scope of this repo: **Task 1 only** — Frontend & Backend Development + Cloud D
 | Validation | `zod` on every body and query, plus client-side validation |
 | Security | `helmet`, double-submit CSRF, login rate limiting, secure session cookies |
 | Tests | Node test runner + `supertest`; integration runs against the deployed URL |
+| Monitoring (Task 2) | AWS X-Ray (`aws-xray-sdk-core`/`-mysql`/`-express`, wrapping `mysql2`, DynamoDB, S3 and the Express request cycle) + CloudWatch |
+| Serverless (Task 2) | API Gateway + Lambda, at least one of S3 / SNS / SQS per microservice — see `docs/task2-plan.md` |
 
 Region is `us-east-1` (AWS Academy Learner Lab constraint). Service role `LabRole`,
 instance profile `LabInstanceProfile` — the lab blocks creating our own IAM roles.

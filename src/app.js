@@ -4,6 +4,12 @@ const path = require('path');
 const express = require('express');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
+const xrayExpress = require('aws-xray-sdk-express');
+
+// Required before any route (which transitively construct the mysql2 pool and the DynamoDB/S3
+// clients), so every one of them is already wrapped for tracing by the time they are built.
+// See that file for why setContextMissingStrategy is set explicitly.
+require('./lib/xray');
 
 const healthRoutes = require('./routes/health');
 const authRoutes = require('./routes/auth');
@@ -81,6 +87,12 @@ app.use((req, res, next) => {
 // through another layer that could fail independently.
 app.use(healthRoutes);
 
+// X-Ray tracing starts here, deliberately after /health -- src/lib/xray.js explains why the
+// health probe's own RDS/DynamoDB/S3 calls must not depend on a segment being open. Named
+// after the app so 'BridgeAbility' is what shows up as the service in the X-Ray console; see
+// docs/task2-plan.md, B3, for what the resulting service map is used to compare.
+app.use(xrayExpress.openSegment('BridgeAbility'));
+
 app.use(cookieParser());
 app.use(sessionMiddleware);
 app.use(csrfProtection);
@@ -121,6 +133,10 @@ app.use(adminReportRoutes);
 app.use(coordinatorBookingRoutes);
 
 app.use(notFound);
+// Error-handling middleware (4 args), so Express only calls it when something ahead called
+// next(error) -- notFound above handles 404s itself and never reaches this. Attaches the
+// error to the X-Ray segment before errorHandler renders the response.
+app.use(xrayExpress.closeSegment());
 app.use(errorHandler);
 
 module.exports = app;
