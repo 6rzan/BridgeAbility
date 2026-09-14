@@ -11,29 +11,30 @@ Built for **CT071-3-3-DDAC**, Asia Pacific University — Group 21, Topic 4. Thi
 
 | | |
 |---|---|
-| **Live** | http://bridgeability-env.eba-ucukykqf.us-east-1.elasticbeanstalk.com |
-| **Health** | [`/health`](http://bridgeability-env.eba-ucukykqf.us-east-1.elasticbeanstalk.com/health) — checks RDS, DynamoDB and S3 |
+| **Live** | environment is being re-provisioned after an AWS Academy Learner Lab reset (see [Deploying](#deploying)) — no working URL at the moment |
+| **Health** | `/health` on whichever URL the current environment answers at — checks RDS, DynamoDB and S3 |
 | **Region** | `us-east-1` (AWS Academy Learner Lab constraint) |
 
 > This is a cloud application. It reads and writes real AWS services on every request; there
 > is no local database, no mocked AWS client, and no offline mode. Demonstrations and
-> integration tests run against the live URL above, never against `localhost`.
+> integration tests run against a deployed Elastic Beanstalk URL, never against `localhost`.
 
 ## What it does
 
-The platform is built as eight vertical functionalities, one owner each. Three are live; the
-rest are in progress on their own branches.
+The platform is built as eight vertical functionalities, one owner each. All eight are
+implemented, tested and were verified on a live environment; see the table at the top of this
+document for the current deployment status.
 
-| | Owner | Role | Functionality | Status |
-|---|---|---|---|---|
-| F1 | Taha Fahd Ahmed Mohammed | Requester | Search and browse verified listings | **Live** |
-| F2 | Taha Fahd Ahmed Mohammed | Requester | Submit a booking request and track its status | **Live** |
-| F3 | Abubaker Elsiddig Tageldeen | Provider | Create and manage service listings | Planned |
-| F4 | Abubaker Elsiddig Tageldeen | Provider | Accept / reject / update booking requests | Planned |
-| F5 | Aldhahyani Lama M. A. | Admin | Review and approve/reject provider registrations | Planned |
-| F6 | Aldhahyani Lama M. A. | Admin | Monitor system-wide activity through reports | Planned |
-| F7 | Noor Khalil Abdullah Khaled | Coordinator | Assign a volunteer to a confirmed booking | Planned |
-| F8 | Noor Khalil Abdullah Khaled | Coordinator | Update and log completion status | Planned |
+| | Owner | Role | Functionality |
+|---|---|---|---|
+| F1 | Taha Fahd Ahmed Mohammed | Requester | Search and browse verified listings |
+| F2 | Taha Fahd Ahmed Mohammed | Requester | Submit a booking request and track its status |
+| F3 | Abubaker Elsiddig Tageldeen | Provider | Create and manage service listings |
+| F4 | Abubaker Elsiddig Tageldeen | Provider | Accept / reject / update booking requests |
+| F5 | Aldhahyani Lama M. A. | Admin | Review and approve/reject provider registrations |
+| F6 | Aldhahyani Lama M. A. | Admin | Monitor system-wide activity through reports |
+| F7 | Noor Khalil Abdullah Khaled | Coordinator | Assign a volunteer to a confirmed booking |
+| F8 | Noor Khalil Abdullah Khaled | Coordinator | Update and log completion status |
 
 Registration, sign-in, sign-out, role-based routing, the accessible layout and the `/health`
 probe are cross-cutting and jointly owned.
@@ -132,17 +133,35 @@ is given.
 
 ## Deploying
 
-The EB CLI deploys the committed branch:
+**First time in a fresh AWS Academy lab session** (there is no such thing as a VPC ID that
+survives a lab reset, so this step cannot be skipped — see `.ebextensions/02-options.config`
+for why the VPC/subnet/security group are never hardcoded in this repo):
+
+```bash
+# DynamoDB tables — idempotent, safe to re-run after every lab reset
+AWS_REGION=us-east-1 bash db/dynamodb/create-tables.sh
+
+# Elastic Beanstalk environment, pointed at your *current* lab's network
+eb create bridgeability-env \
+  --vpc.id <your-lab-vpc-id> \
+  --vpc.ec2subnets <subnet-a,subnet-b,subnet-c> \
+  --vpc.elbsubnets <subnet-a,subnet-b,subnet-c> \
+  --vpc.securitygroups <your-app-security-group-id> \
+  --vpc.publicip
+```
+
+The RDS instance itself is provisioned separately through the console or CLI (`PubliclyAccessible
+= No`, in the same VPC, with a security group that admits 3306 only from the app's security
+group), since it is stateful and not something to recreate on every deploy.
+
+Every deploy after that is the EB CLI against the existing environment:
 
 ```bash
 eb deploy
 ```
 
-Schema and seed migrations run **on the instance**, inside the VPC, against the private RDS:
-
-```bash
-npm run migrate
-```
+Schema and seed migrations run **on the instance**, inside the VPC, against the private RDS,
+via `.ebextensions/01-migrate.config` on every deploy — there is no separate manual step.
 
 Amazon Linux 2023 serves the Node.js version in `package.json`. A returning visitor never gets
 a stale stylesheet: static asset URLs carry a hash of their contents and are cached as
@@ -152,14 +171,16 @@ a stale stylesheet: static asset URLs carry a hash of their contents and are cac
 
 ```bash
 npm test              # unit suite — pure modules, no AWS connection
-npm run test:integration   # runs against the deployed URL
+BASE_URL=http://<your-env>.elasticbeanstalk.com npm run test:integration
 ```
 
 The unit suite covers the validation schemas, the CSRF comparison, the authorisation guards,
 the session store's expiry maths, the SQL statement splitter, and the F2 booking flow
 (the Kuala Lumpur wall-clock conversion, submission validation, pagination and the status
-filter). Anything that touches RDS, DynamoDB or S3 is covered by the integration suite against
-the live environment — there is no local database or mocked AWS client anywhere in the project.
+filter). The integration suite runs `/health`, the public catalogue and the sign-in redirect
+against a real deployed URL passed as `BASE_URL` — there is no local database or mocked AWS
+client anywhere in the project, so this is the only place RDS, DynamoDB and S3 are exercised
+for real.
 
 ## Configuration
 
@@ -182,11 +203,22 @@ src/
   views/              EJS templates and partials
   public/             CSS and progressive-enhancement JavaScript
 db/                   schema.sql, seed.sql, patches, migration runner
-scripts/              secret scan, contrast check
+db/dynamodb/          table definitions and the create-tables script
+scripts/              secret scan, contrast check, submission packaging
 tests/unit/           unit suite
-tests/integration/    suite that runs against the deployed URL
-docs/                 CRUD matrix and working notes
+tests/integration/    suite that runs against the deployed URL (BASE_URL)
+docs/                 CRUD matrix, references, working notes
 ```
+
+## Packaging a submission
+
+```bash
+node scripts/package-submission.js [output-name] [git-ref]
+```
+
+Builds the zip from `git archive` at a given ref — exactly the committed tree, nothing hand-
+picked — after confirming the working tree is clean, `npm test` is green and
+`scripts/secret-scan.sh` is clean. Defaults to `G21_Task_2_Final_System.zip` from `HEAD`.
 
 ## Team
 
