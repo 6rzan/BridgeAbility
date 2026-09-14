@@ -22,20 +22,36 @@
 #
 # Run this once per bucket, from a machine with lab credentials. It is idempotent.
 #
-# Usage: S3_BUCKET=<bucket-name> bash scripts/apply-s3-cors.sh
+# WHY APP_ORIGIN IS A VARIABLE, NOT BAKED INTO s3-cors.json
+#
+# The origin is the Elastic Beanstalk URL, and AWS Academy issues a brand-new environment --
+# with a brand-new URL -- every time the lab resets. A previous version of this file had the
+# now-dead URL hardcoded into the tracked s3-cors.json, which is the same "stale per-session
+# literal in a tracked file" defect as the VPC IDs .ebextensions/02-options.config used to
+# carry (see that file's comments). s3-cors.json now holds a placeholder token that this
+# script substitutes at apply time, so nothing session-specific is ever committed.
+#
+# Usage: S3_BUCKET=<bucket-name> APP_ORIGIN=http://<your-eb-url> bash scripts/apply-s3-cors.sh
 
 set -euo pipefail
 
 if [[ -z "${S3_BUCKET:-}" ]]; then
-  echo "S3_BUCKET is not set. Run: S3_BUCKET=<bucket-name> bash scripts/apply-s3-cors.sh" >&2
+  echo "S3_BUCKET is not set. Run: S3_BUCKET=<bucket-name> APP_ORIGIN=<your-eb-url> bash scripts/apply-s3-cors.sh" >&2
+  exit 1
+fi
+
+if [[ -z "${APP_ORIGIN:-}" ]]; then
+  echo "APP_ORIGIN is not set. Run: S3_BUCKET=<bucket-name> APP_ORIGIN=<your-eb-url> bash scripts/apply-s3-cors.sh" >&2
   exit 1
 fi
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+cors_rules="$(sed "s#__APP_ORIGIN__#$APP_ORIGIN#" "$here/s3-cors.json")"
+
 aws s3api put-bucket-cors \
   --bucket "$S3_BUCKET" \
-  --cors-configuration "{\"CORSRules\": $(cat "$here/s3-cors.json")}"
+  --cors-configuration "{\"CORSRules\": $cors_rules}"
 
 echo "CORS applied to $S3_BUCKET. Current rules:"
 aws s3api get-bucket-cors --bucket "$S3_BUCKET"
