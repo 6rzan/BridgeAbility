@@ -1,0 +1,32 @@
+{
+  "TableName": "BridgeAbility_BookingTimeline",
+  "AttributeDefinitions": [
+    {"AttributeName": "PK", "AttributeType": "S"},
+    {"AttributeName": "SK", "AttributeType": "S"},
+    {"AttributeName": "status", "AttributeType": "S"},
+    {"AttributeName": "providerId", "AttributeType": "S"}
+  ],
+  "KeySchema": [
+    {"AttributeName": "PK", "KeyType": "HASH"},
+    {"AttributeName": "SK", "KeyType": "RANGE"}
+  ],
+  "BillingMode": "PAY_PER_REQUEST",
+  "GlobalSecondaryIndexes": [
+    {
+      "IndexName": "GSI-1",
+      "KeySchema": [
+        {"AttributeName": "status", "KeyType": "HASH"},
+        {"AttributeName": "SK", "KeyType": "RANGE"}
+      ],
+      "Projection": {"ProjectionType": "ALL"}
+    },
+    {
+      "IndexName": "GSI-2",
+      "KeySchema": [
+        {"AttributeName": "providerId", "KeyType": "HASH"},
+        {"AttributeName": "SK", "KeyType": "RANGE"}
+      ],
+      "Projection": {"ProjectionType": "ALL"}
+    }
+  ]
+}
