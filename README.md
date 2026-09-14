@@ -138,17 +138,40 @@ survives a lab reset, so this step cannot be skipped — see `.ebextensions/02-o
 for why the VPC/subnet/security group are never hardcoded in this repo):
 
 ```bash
-# DynamoDB tables — idempotent, safe to re-run after every lab reset
+# DynamoDB tables — idempotent, safe to re-run after every lab reset. Also reconciles an
+# existing table against the tracked definition (adds a missing GSI, enables TTL if it was
+# left off) rather than only creating tables from nothing.
 AWS_REGION=us-east-1 bash db/dynamodb/create-tables.sh
 
-# Elastic Beanstalk environment, pointed at your *current* lab's network
+# Elastic Beanstalk environment, pointed at your *current* lab's network. --single (one
+# instance, no load balancer) is why the app security group needs port 80 open directly
+# (see scripts/provision.sh's app-tier security group step) rather than only from an ALB.
+#
+# --instance_profile and --service-role are not optional: without them `eb create` tries to
+# auto-create `aws-elasticbeanstalk-service-role` and fails with "No permissions to perform
+# iam:CreateRole" -- Academy blocks creating IAM roles (CLAUDE.md, "Deliberately rejected").
+# LabInstanceProfile / LabRole are the lab-provided ones every member's sandbox already has.
 eb create bridgeability-env \
+  --single \
   --vpc.id <your-lab-vpc-id> \
   --vpc.ec2subnets <subnet-a,subnet-b,subnet-c> \
-  --vpc.elbsubnets <subnet-a,subnet-b,subnet-c> \
   --vpc.securitygroups <your-app-security-group-id> \
-  --vpc.publicip
+  --vpc.publicip \
+  --instance_profile LabInstanceProfile \
+  --service-role LabRole \
+  --envvars "DB_HOST=<rds-endpoint>,DB_USER=<rds-master-username>,DB_NAME=bridgeability,S3_BUCKET=<your-bucket>,DDB_TIMELINE_TABLE=BridgeAbility_BookingTimeline,DDB_SESSIONS_TABLE=BridgeAbility_Sessions,SESSION_SECRET=<32+ random chars>,SESSION_COOKIE_SECURE=false"
 ```
+
+`DB_PASSWORD` is deliberately left out of that `--envvars` list — a real secret should not sit in
+shell history or a command another process on the machine could read via `ps`. Set it
+separately, straight into the running environment, either:
+
+```bash
+eb setenv DB_PASSWORD=<your-rds-master-password>
+```
+
+or Elastic Beanstalk console → the environment → Configuration → Software → Environment
+properties.
 
 The RDS instance itself is provisioned separately through the console or CLI (`PubliclyAccessible
 = No`, in the same VPC, with a security group that admits 3306 only from the app's security
