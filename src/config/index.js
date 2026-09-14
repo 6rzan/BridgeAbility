@@ -36,6 +36,11 @@ const schema = z.object({
   // DynamoDB timeline append. See src/services/notificationPublisher.js.
   SNS_BOOKING_EVENTS_TOPIC_ARN: z.string().optional(),
 
+  // Task 2, MS-2 (docs/task2-plan.md). Optional for the same reason: the Task 1 baseline
+  // environment never sets it, and src/services/reportsGateway.js falls back to the monolith's
+  // own direct DynamoDB query (the pre-Task-2 behaviour) whenever it is unset or unreachable.
+  REPORTS_API_URL: z.string().optional(),
+
   SESSION_SECRET: z.string().min(32, 'SESSION_SECRET must be at least 32 characters'),
   SESSION_TTL_SECONDS: z.coerce.number().int().positive().default(60 * 60 * 8),
 
@@ -97,6 +102,10 @@ module.exports = {
   sns: {
     // null, not '', when unset -- callers check this with a plain truthiness test.
     bookingEventsTopicArn: env.SNS_BOOKING_EVENTS_TOPIC_ARN || null,
+  },
+
+  reports: {
+    recentlyCompletedApiUrl: env.REPORTS_API_URL || null,
   },
 
   session: {

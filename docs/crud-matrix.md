@@ -8,7 +8,8 @@ This file grows one section per functionality as each is delivered. Rows that ar
 built are listed as **planned** rather than left out, so the gap between what is claimed and
 what exists is visible at a glance.
 
-Data stores: **RDS** (Amazon RDS for MySQL 8) · **DDB** (Amazon DynamoDB) · **S3** (Amazon S3).
+Data stores: **RDS** (Amazon RDS for MySQL 8) · **DDB** (Amazon DynamoDB) · **S3** (Amazon S3) ·
+**SNS/SQS** (Amazon SNS + SQS, MS-1) · **APIGW** (Amazon API Gateway + Lambda, MS-2).
 
 ---
 
@@ -17,11 +18,15 @@ Data stores: **RDS** (Amazon RDS for MySQL 8) · **DDB** (Amazon DynamoDB) · **
 | Store | Create | Read | Update | Delete |
 |---|---|---|---|---|
 | RDS | F-auth (users, providers) · F2 (bookings) · F3 (services) · F7 (`assignments`) · *live* | F1 (services, providers) · F2 (own bookings) · F3 (own listings) · F4 (incoming queue) · F5 (registration queue) · F6 (status aggregates) · F7 (assignment queue) · *live* | F2 (cancel) · F3 (edit, withdraw, publish) · F4 (accept/reject) · F5 (approve/reject) · F7 (`bookings.status` → `assigned`) · F8 (`assignments.completion_status`, `bookings.status` → `completed`) · *live* | F3 (delete an unbooked listing) · *live* |
-| DDB | F-auth (sessions) · F2 (timeline events) · F4 (accept/reject events) · F7 (assignment event) · F8 (completed event) · *live* | F-auth (sessions) · F2 (booking history) · F4 (booking history) · F6 (completed-bookings report, `GSI-1`) · F7 (booking history) · *live* | F-auth (session touch) · *live* | F-auth (sign-out) · *live* |
+| DDB | F-auth (sessions) · F2 (timeline events) · F4 (accept/reject events) · F7 (assignment event) · F8 (completed event) · MS-1 (notification record) · *live* | F-auth (sessions) · F2 (booking history) · F4 (booking history) · F6 (completed-bookings report, `GSI-1`, via MS-2) · F7 (booking history) · *live* | F-auth (session touch) · *live* | F-auth (sign-out) · *live* |
 | S3 | F-media (placeholder illustrations, verification documents) · F3 (presigned PUT) · *live* | F1 (presigned GET) · F3 (own listing images) · F5 (verification document) · *live* | F3 (replace an image) · *live* | F3 (remove an image, delete a listing) · *live* |
+| SNS/SQS | F4, F5 (booking/provider decisions published to `bridgeability-booking-events`, consumed by MS-1's Lambda) · *live, verified end to end (`docs/task2-plan.md`)* | — | — | — |
+| APIGW | — | F6 (`GET /reports/recently-completed`, MS-2's Lambda reading `GSI-1`) · *live, verified end to end* | — | — |
 
 "F-auth" is the cross-cutting authentication slice, owned jointly. Every other row has one
-named owner.
+named owner. MS-1 and MS-2 are Task 2's serverless additions (`docs/task2-plan.md`) — Abubaker
+and Lama respectively — layered onto F4/F5 and F6 without changing either functionality's own
+RDS behaviour.
 
 ---
 
@@ -250,7 +255,14 @@ registration was already decided.
 | Read | RDS | Bookings grouped by status, across every requester and provider | `GET /admin/reports` → `reportRepository.bookingsByStatus` |
 | Read | RDS | Provider registrations grouped by review status | `GET /admin/reports` → `reportRepository.providersByStatus` |
 | Read | RDS | Volunteer assignments grouped by completion status | `GET /admin/reports` → `reportRepository.assignmentsByCompletionStatus` |
-| Read | DDB | The ten most recently completed bookings, newest first, via `GSI-1` | `GET /admin/reports` → `timelineRepository.queryCompletedEvents` |
+| Read | DDB / API Gateway + Lambda (MS-2, Task 2) | The ten most recently completed bookings, newest first, via `GSI-1` | `GET /admin/reports` → `adminReportService.buildReport` → `reportsGateway.fetchRecentlyCompleted` → API Gateway `GET /reports/recently-completed` → `services/reports/index.js`, falling back to the pre-Task-2 direct `timelineRepository.queryCompletedEvents` call on any failure or when `REPORTS_API_URL` is unset |
+
+**MS-2 (Task 2).** Moves exactly this one panel behind API Gateway + Lambda — not the three RDS
+summaries above, which reflect *live* current state and cannot be correctly reproduced from
+DynamoDB's event history for anything but a terminal status (see `services/reports/index.js`
+for the full reasoning, and `docs/task2-plan.md`, B1). `reportsGateway.js` calls the gateway
+when configured, and falls back to the identical direct query otherwise, so the row above is
+still true either way — only *where* the query runs has changed.
 
 **A read-only route.** Nothing here writes anything, so unlike every other functionality there
 is no form, no CSRF token and no per-row ownership check — the role guard on the router

@@ -1,16 +1,25 @@
 'use strict';
 
 const reportRepository = require('../data/mysql/reportRepository');
-const timelineRepository = require('../data/dynamo/timelineRepository');
+const { fetchRecentlyCompleted } = require('./reportsGateway');
 const { formatWallClock, toKualaLumpur, STATUSES: BOOKING_STATUSES, STATUS_LABELS: BOOKING_STATUS_LABELS } = require('../validation/bookingSchemas');
 const { PROVIDER_STATUSES, PROVIDER_STATUS_LABELS } = require('../validation/adminProviderSchemas');
 
 /**
  * System-wide activity reports (F6).
  *
- * A read-only page: three RDS aggregates plus a DynamoDB query, run in parallel because none of
+ * A read-only page: three RDS aggregates plus one more read, run in parallel because none of
  * the four depends on another. Nothing here writes anything, so unlike every other service in
  * the application there is no repository call whose result gates a later one.
+ *
+ * The fourth read -- recently completed bookings -- goes through
+ * reportsGateway.fetchRecentlyCompleted (Task 2, MS-2: docs/task2-plan.md), which calls MS-2's
+ * Lambda behind API Gateway when it is configured, or the monolith's own direct DynamoDB query
+ * otherwise. Either way the shape coming back is identical, so nothing below this needs to know
+ * which one answered. The three RDS aggregates stay exactly as they were: they reflect *live*
+ * current state (bookings.status is the source of truth), which DynamoDB's event history cannot
+ * correctly reproduce for anything but a terminal status -- see services/reports/index.js for
+ * why that rules them out of MS-2's scope, not just this comment.
  *
  * completion_status's labels are defined here rather than imported from a validation module,
  * because F8 (which owns that enum end to end) does not exist yet at the point this file is
@@ -51,15 +60,16 @@ async function buildReport() {
     reportRepository.assignmentsByCompletionStatus(),
   ]);
 
-  // DynamoDB is a second, independently-failing system. The three RDS summaries above are the
-  // report's core and must not be lost because a Dynamo query timed out -- this degrades to an
-  // empty list with a note on the page, the same choice bookingService.findForRequester makes
-  // for one booking's timeline.
+  // reportsGateway already falls back from MS-2's Lambda to a direct DynamoDB query on its own,
+  // but the read as a whole -- gateway call and fallback both -- can still fail (the fallback's
+  // own DynamoDB query included). The three RDS summaries above are the report's core and must
+  // not be lost because of that -- this degrades to an empty list with a note on the page, the
+  // same choice bookingService.findForRequester makes for one booking's timeline.
   let recentlyCompleted = [];
   let timelineAvailable = true;
 
   try {
-    const events = await timelineRepository.queryCompletedEvents({ limit: HOW_MANY_RECENT });
+    const events = await fetchRecentlyCompleted(HOW_MANY_RECENT);
     recentlyCompleted = events.map((event) => ({
       bookingId: event.bookingId,
       actorName: event.actorName,
