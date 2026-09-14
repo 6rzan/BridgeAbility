@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "BridgeAbility Role Workflows",
+    "subtitle": "One flow per role — use the view switcher to move between them",
+    "output": "docs/notes/bridgeability-roles.html",
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "requester", "label": "Requester — Taha Fahd (TP078281)", "focus": ["r_browse", "r_submit", "r_track", "r_cancel"], "note": "F1 search & browse, F2 submit a booking and track its status." },
+      { "id": "provider", "label": "Provider — Abubaker Elsiddig (TP078003)", "focus": ["p_manage", "p_publish", "p_queue", "p_decision"], "note": "F3 create and manage listings, F4 accept or reject bookings." },
+      { "id": "admin", "label": "Admin — Aldhahyani Lama (TP078792)", "focus": ["a_queue", "a_decision", "a_reports", "a_stats"], "note": "F5 review provider registrations, F6 monitor activity reports." },
+      { "id": "coordinator", "label": "Coordinator — Noor Khalil (TP078880)", "focus": ["c_queue", "c_assign", "c_update", "c_completed"], "note": "F7 assign a volunteer, F8 update and log completion status." }
+    ]
+  },
+  "lanes": [
+    { "id": "requester", "label": "Requester · Taha Fahd Ahmed Mohammed · TP078281" },
+    { "id": "provider", "label": "Provider · Abubaker Elsiddig Tageldeen · TP078003" },
+    { "id": "admin", "label": "Admin · Aldhahyani Lama M. A. · TP078792" },
+    { "id": "coordinator", "label": "Coordinator · Noor Khalil Abdullah Khaled · TP078880" }
+  ],
+  "phases": [
+    { "id": "discover", "label": "Discover", "fromCol": 0, "toCol": 0 },
+    { "id": "act", "label": "Act", "fromCol": 1, "toCol": 2, "variant": "emphasis" },
+    { "id": "resolve", "label": "Resolve", "fromCol": 3, "toCol": 5, "variant": "dashed" }
+  ],
+  "mainPath": ["r_browse", "r_submit", "r_track", "r_cancel"],
+  "nodes": [
+    { "id": "r_browse", "lane": "requester", "col": 0, "type": "frontend", "label": "Browse & View", "sublabel": "GET /services", "tag": "F1" },
+    { "id": "r_submit", "lane": "requester", "col": 1, "type": "backend", "label": "Submit", "sublabel": "POST /bookings", "tag": "F2" },
+    { "id": "r_track", "lane": "requester", "col": 3, "type": "database", "label": "Track Status", "sublabel": "GET /bookings" },
+    { "id": "r_cancel", "lane": "requester", "col": 5, "type": "backend", "label": "Cancel", "sublabel": "cancelPending" },
+
+    { "id": "p_manage", "lane": "provider", "col": 0, "type": "frontend", "label": "My Listings", "sublabel": "CRUD + image", "tag": "F3" },
+    { "id": "p_publish", "lane": "provider", "col": 1, "type": "backend", "label": "Publish", "sublabel": "setActive" },
+    { "id": "p_queue", "lane": "provider", "col": 3, "type": "backend", "label": "Incoming", "sublabel": "findIncoming" },
+    { "id": "p_decision", "lane": "provider", "col": 5, "type": "security", "label": "Accept/Reject", "sublabel": "setDecision", "tag": "F4" },
+
+    { "id": "a_queue", "lane": "admin", "col": 0, "type": "backend", "label": "Reg. Queue", "sublabel": "listByStatus", "tag": "F5" },
+    { "id": "a_decision", "lane": "admin", "col": 1, "type": "security", "label": "Approve/Deny", "sublabel": "decide() + doc" },
+    { "id": "a_reports", "lane": "admin", "col": 3, "type": "database", "label": "Reports", "sublabel": "byStatus", "tag": "F6" },
+    { "id": "a_stats", "lane": "admin", "col": 5, "type": "database", "label": "Assign Stats", "sublabel": "byCompletion" },
+
+    { "id": "c_queue", "lane": "coordinator", "col": 0, "type": "backend", "label": "Assign Queue", "sublabel": "findForCoord", "tag": "F7" },
+    { "id": "c_assign", "lane": "coordinator", "col": 1, "type": "backend", "label": "Assign Vol.", "sublabel": "createAssign" },
+    { "id": "c_update", "lane": "coordinator", "col": 3, "type": "backend", "label": "Log Complete", "sublabel": "updateStatus", "tag": "F8" },
+    { "id": "c_completed", "lane": "coordinator", "col": 5, "type": "external", "label": "Completed", "sublabel": "status done" }
+  ],
+  "edges": [
+    { "from": "r_browse", "to": "r_submit", "variant": "emphasis" },
+    { "from": "r_submit", "to": "r_track", "variant": "emphasis" },
+    { "from": "r_track", "to": "r_cancel", "variant": "emphasis" },
+
+    { "from": "p_manage", "to": "p_publish" },
+    { "from": "p_publish", "to": "p_queue", "variant": "emphasis" },
+    { "from": "p_queue", "to": "p_decision", "variant": "emphasis" },
+
+    { "from": "a_queue", "to": "a_decision", "variant": "emphasis" },
+    { "from": "a_decision", "to": "a_reports", "variant": "emphasis" },
+    { "from": "a_reports", "to": "a_stats" },
+
+    { "from": "c_queue", "to": "c_assign", "variant": "emphasis" },
+    { "from": "c_assign", "to": "c_update", "variant": "emphasis" },
+    { "from": "c_update", "to": "c_completed", "variant": "emphasis" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Requester — F1 & F2 (this session's focus)", "items": ["F1: public catalogue, visibility rule enforced in SQL, presigned S3 image URLs", "F2: booking is transactional in RDS, history appended to DynamoDB", "Authorization lives in the WHERE clause — own bookings only, 404 not 403"] },
+    { "dot": "emerald", "title": "Provider — F3 & F4", "items": ["F3: listings scoped to the signed-in provider's own organisation", "F4: accept/reject guarded on pending status and service ownership", "Images via presigned PUT direct to S3, never through the app server"] },
+    { "dot": "violet", "title": "Admin — F5 & F6", "items": ["F5: provider registration is a queue with an audited approve/reject", "F6: cross-store reporting — RDS aggregates plus a DynamoDB GSI feed"] },
+    { "dot": "amber", "title": "Coordinator — F7 & F8", "items": ["F7: volunteer assignment writes RDS and DynamoDB in one flow", "F8: completion status closes the booking and the timeline together"] }
+  ]
+}

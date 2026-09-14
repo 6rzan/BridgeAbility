@@ -13,7 +13,7 @@ const {
 const { paginate, parseAvailability } = require('../../src/services/catalogueService');
 const { buildQueryString, describeFilters } = require('../../src/controllers/serviceController');
 
-// --- filter validation -------------------------------------------------------
+
 
 test('an empty query string produces an unfiltered first page', () => {
   const criteria = serviceSearchSchema.parse({});
@@ -23,8 +23,7 @@ test('an empty query string produces an unfiltered first page', () => {
   });
 });
 
-// A cleared select submits "", which must mean "no filter" rather than "match the empty
-// string" -- otherwise clearing a filter returns nothing.
+
 test('a blank filter is treated as absent, not as a value to match', () => {
   const criteria = serviceSearchSchema.parse({ q: '   ', category: '', location: '', maxPrice: '' });
 
@@ -41,8 +40,7 @@ test('numbers arrive from the query string as text and are coerced', () => {
   assert.equal(criteria.page, 3);
 });
 
-// The sort key selects a SQL fragment we wrote. If an arbitrary value could reach it, the
-// ORDER BY clause would be attacker-controlled, which is the classic hole in a search page.
+
 test('an unknown sort key is rejected rather than passed through', () => {
   const result = serviceSearchSchema.safeParse({ sort: 's.price; DROP TABLE services' });
   assert.equal(result.success, false);
@@ -65,10 +63,9 @@ test('a nonsensical page or price is rejected rather than silently clamped', () 
   assert.equal(serviceSearchSchema.safeParse({ maxPrice: '-1' }).success, false);
 });
 
-// --- LIKE wildcards ----------------------------------------------------------
 
-// Not a SQL injection concern -- the term is bound. This is about the pattern language
-// inside the string: an unescaped % matches everything, which is a wrong answer.
+
+
 test('LIKE wildcards in a search term are escaped', () => {
   assert.equal(escapeLikeTerm('100%'), '100\\%');
   assert.equal(escapeLikeTerm('a_b'), 'a\\_b');
@@ -76,7 +73,7 @@ test('LIKE wildcards in a search term are escaped', () => {
   assert.equal(escapeLikeTerm('interpreter'), 'interpreter');
 });
 
-// --- pagination --------------------------------------------------------------
+
 
 test('pagination reports the range being shown', () => {
   const page = paginate(20, 2, 6);
@@ -98,7 +95,7 @@ test('the last page reports only the items it actually holds', () => {
   assert.equal(page.hasNext, false);
 });
 
-// Reachable by editing the URL, or by holding a link while listings change underneath it.
+
 test('a page past the end is clamped to the last real page', () => {
   const page = paginate(20, 99, 6);
 
@@ -116,7 +113,7 @@ test('no results still yields one page and a zero range', () => {
   assert.equal(page.hasPrevious, false);
 });
 
-// --- links -------------------------------------------------------------------
+
 
 test('the query string carries the active filters and omits the defaults', () => {
   const criteria = serviceSearchSchema.parse({ category: 'transport', q: 'ramp' });
@@ -126,7 +123,7 @@ test('the query string carries the active filters and omits the defaults', () =>
   assert.match(link, /category=transport/);
   assert.match(link, /q=ramp/);
   assert.match(link, /page=2/);
-  // relevance and page 1 are the defaults, so they are implied by their absence.
+
   assert.doesNotMatch(link, /sort=relevance/);
 });
 
@@ -144,7 +141,7 @@ test('the filter summary names the filters in force', () => {
   assert.match(summary, /200\.00/);
 });
 
-// --- availability ------------------------------------------------------------
+
 
 test('availability is read from an object or a JSON string', () => {
   const expected = { days: ['Mon', 'Tue'], hours: '09:00-17:00' };
@@ -153,7 +150,7 @@ test('availability is read from an object or a JSON string', () => {
   assert.deepEqual(parseAvailability('{"days":["Mon","Tue"],"hours":"09:00-17:00"}'), expected);
 });
 
-// A listing with unreadable availability must still render everything else.
+
 test('unreadable availability yields null instead of throwing', () => {
   for (const value of [null, undefined, '', 'not json', '{}', '{"days":"Mon"}']) {
     assert.equal(parseAvailability(value), null, JSON.stringify(value));

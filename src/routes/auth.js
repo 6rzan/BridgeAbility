@@ -8,17 +8,8 @@ const { requireAuth, requireGuest } = require('../middleware/authorize');
 
 const router = express.Router();
 
-/**
- * Rate limiting on the two routes that accept credentials.
- *
- * KNOWN LIMITATION, stated rather than hidden: express-rate-limit counts in the memory of one
- * Node process. Behind the load balancer in Phase F there are two instances, so the effective
- * ceiling across the environment is twice the number below, and a restart resets the counters.
- * Making it exact means a shared counter -- a DynamoDB item with an atomic ADD, which we
- * already have the table and the client for. It is out of scope for Task 1 and recorded in
- * docs/defect-log.md rather than quietly left as an unknown. What is here still defeats the
- * attack it is aimed at: an online password-guessing run against one account.
- */
+
+
 const CREDENTIAL_WINDOW_MS = 15 * 60 * 1000;
 
 function credentialLimiter(limit, message) {
@@ -27,8 +18,7 @@ function credentialLimiter(limit, message) {
     limit,
     standardHeaders: 'draft-7',
     legacyHeaders: false,
-    // Successful sign-ins are not counted, so a shared office address cannot lock itself out
-    // through ordinary use; only failures consume the budget.
+
     skipSuccessfulRequests: true,
     handler: (req, res) => {
       res.status(429).render('error', {

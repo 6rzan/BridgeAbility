@@ -16,7 +16,7 @@ const {
 } = require('../../src/controllers/coordinatorBookingController');
 const { VIEWS } = require('../../src/data/mysql/assignmentRepository');
 
-// --- assignmentCreateSchema -------------------------------------------------------
+
 
 test('a well-formed assignment is accepted and trimmed', () => {
   const parsed = assignmentCreateSchema.safeParse({
@@ -65,7 +65,7 @@ test('a field that is only whitespace is rejected, not accepted as blank', () =>
   assert.equal(parsed.success, false);
 });
 
-// --- decorate ----------------------------------------------------------------------
+
 
 test('only an accepted booking can be assigned', () => {
   const base = {
@@ -97,7 +97,7 @@ test('a booking with no assignment yet has no assigned or completed label', () =
   assert.equal(decorated.completedLabel, null);
 });
 
-// --- parseBookingId / parseView / parsePage / buildQueryString ---------------------
+
 
 test('a positive integer string is a valid booking id', () => {
   assert.equal(parseBookingId('7'), 7);

@@ -6,13 +6,8 @@ const { presignGet } = require('../data/s3/client');
 const { formatWallClock, toKualaLumpur } = require('../validation/bookingSchemas');
 const { PROVIDER_STATUS_LABELS } = require('../validation/adminProviderSchemas');
 
-/**
- * Reviewing provider registrations (F5).
- *
- * This is the second half of F1's visibility rule: a provider may create and edit listings the
- * moment they register (F3), but nothing they publish reaches the public catalogue until
- * `providers.status = 'approved'`, which only happens here.
- */
+
+
 
 const PER_PAGE = bookingService.PER_PAGE;
 
@@ -26,11 +21,8 @@ function decorate(provider) {
   };
 }
 
-/**
- * A verification document is never a public URL -- the same reasoning as
- * providerListingService.attachImageUrl. A failure to sign degrades to no link rather than an
- * error page; the administrator still needs to be able to review the rest of the registration.
- */
+
+
 async function attachDocUrl(provider) {
   if (!provider.verification_doc_s3_key) {
     return { ...provider, docUrl: null };
@@ -47,7 +39,7 @@ async function attachDocUrl(provider) {
   }
 }
 
-/** One page of the review queue, with the counts the filter menu shows. */
+
 async function listQueue({ status, page }) {
   const totalItems = await adminProviderRepository.countByStatus({ status });
   const pagination = bookingService.paginate(totalItems, page, PER_PAGE);
@@ -68,7 +60,7 @@ async function listQueue({ status, page }) {
   };
 }
 
-/** One registration, with its document link, or null if it does not exist. */
+
 async function findOne(providerId) {
   const provider = await adminProviderRepository.findById(providerId);
   if (!provider) return null;
@@ -76,11 +68,8 @@ async function findOne(providerId) {
   return attachDocUrl(decorate(provider));
 }
 
-/**
- * Approve or reject a registration. The guard is decide's own UPDATE (see
- * adminProviderRepository), so this cannot re-decide a registration another administrator has
- * already acted on.
- */
+
+
 async function review({ providerId, reviewerId, decision }) {
   const provider = await adminProviderRepository.findById(providerId);
 

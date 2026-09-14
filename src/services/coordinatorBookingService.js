@@ -11,19 +11,12 @@ const {
   STATUS_EXPLANATIONS,
 } = require('../validation/bookingSchemas');
 
-/**
- * A coordinator assigns a volunteer to a confirmed booking (F7) and later logs how it went
- * (F8). One service file for both, mirroring assignmentRepository -- see that file's header for
- * why they share.
- *
- * appendEventSafely, decorate's timestamp shaping and the page-arithmetic helper are reused
- * from bookingService (F2) rather than re-implemented, the same choice F4's
- * providerBookingService already made.
- */
+
+
 
 const PER_PAGE = bookingService.PER_PAGE;
 
-/** A coordinator-side decoration: no accept/reject or cancel affordance, just the facts. */
+
 function decorate(booking) {
   return {
     ...booking,
@@ -38,7 +31,7 @@ function decorate(booking) {
   };
 }
 
-/** One page of one of the three buckets, with the counts the tab bar shows. */
+
 async function listQueue({ view, page }) {
   const totalItems = await assignmentRepository.countForCoordinator({ view });
   const pagination = bookingService.paginate(totalItems, page, PER_PAGE);
@@ -58,10 +51,8 @@ async function listQueue({ view, page }) {
   };
 }
 
-/**
- * One booking and its history, or null if it does not exist. No ownership check -- any
- * coordinator may look at any booking, the role guard on the router is the whole model.
- */
+
+
 async function findDetail(bookingId) {
   const booking = await assignmentRepository.findDetail(bookingId);
 
@@ -90,13 +81,8 @@ async function findDetail(bookingId) {
   };
 }
 
-/**
- * Assign a volunteer to a confirmed booking.
- *
- * The guard is createAssignment's own transaction (see assignmentRepository), so this cannot
- * double-assign a booking two coordinators opened at the same moment. Only an assignment that
- * actually happened writes a timeline event.
- */
+
+
 async function assign({ bookingId, actor, volunteerName, volunteerContact }) {
   const booking = await assignmentRepository.findDetail(bookingId);
 
@@ -129,14 +115,8 @@ async function assign({ bookingId, actor, volunteerName, volunteerContact }) {
   return { outcome: 'assigned' };
 }
 
-/**
- * Record how an assignment finished (F8).
- *
- * The guard is updateCompletion's own transaction (see assignmentRepository): a completed
- * assignment cannot be moved anywhere else, regardless of what a stale form submits. Only a
- * transition that lands on 'completed' writes a timeline event -- 'pending' and 'in_progress'
- * are ordinary corrections, not milestones worth a history line.
- */
+
+
 async function updateCompletion({ bookingId, actor, completionStatus, completionNotes }) {
   const booking = await assignmentRepository.findDetail(bookingId);
 
