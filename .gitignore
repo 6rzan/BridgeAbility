@@ -22,6 +22,11 @@ coverage/
 submission/
 *.zip
 
+# The Task 2 Word report -- a separate deliverable submitted on its own, not part of the
+# system zip. Kept out of the repo so it can't block package-submission.js's clean-tree check,
+# and because a binary .docx that several people edit does not belong in a diff-based history.
+*.docx
+
 # OS / editor noise
 .DS_Store
 Thumbs.db
