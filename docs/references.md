@@ -48,3 +48,45 @@ https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Preven
 > double-submit CSRF token, implementing the sheet's "Naive Double-Submit Cookie" pattern
 > hardened with an `HttpOnly` cookie and a server-rendered token, in place of the deprecated
 > `csurf` package (see `CLAUDE.md`, "Deliberately rejected").
+
+---
+
+### Task 2 additions
+
+**Amazon Web Services.** (n.d.). *Batch failure reporting for AWS Lambda with Amazon SQS.*
+AWS Lambda Developer Guide.
+https://docs.aws.amazon.com/lambda/latest/dg/with-sqs.html
+(accessed 15 September 2026)
+
+> Used in: [`services/notification/index.js`](../services/notification/index.js) — the
+> `batchItemFailures` response shape and the `ReportBatchItemFailures` function response type
+> set on the SQS event source mapping, so one malformed message in a batch does not force
+> every message in that batch to be retried.
+
+**Amazon Web Services.** (n.d.). *Amazon SNS dead-letter queues.* Amazon Simple Notification
+Service Developer Guide.
+https://docs.aws.amazon.com/sns/latest/dg/sns-dead-letter-queues.html
+(accessed 15 September 2026)
+
+> Used in: [`scripts/provision-ms1.sh`](../scripts/provision-ms1.sh) — the SQS queue's
+> `RedrivePolicy` (`maxReceiveCount`, `deadLetterTargetArn`) and the queue access policy that
+> lets the SNS topic deliver to it (SQS refuses messages from SNS with no policy at all).
+
+**Amazon Web Services.** (n.d.). *Set up Lambda proxy integrations in API Gateway.*
+Amazon API Gateway Developer Guide.
+https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-lambda-proxy-integrations.html
+(accessed 15 September 2026)
+
+> Used in: [`scripts/deploy-reports-lambda.sh`](../scripts/deploy-reports-lambda.sh) and
+> [`scripts/deploy-timeline-lambda.sh`](../scripts/deploy-timeline-lambda.sh) — the
+> `AWS_PROXY` integration type, under which API Gateway passes the whole request through and
+> expects the Lambda's own `{statusCode, headers, body}` response shape back, with no separate
+> request/response mapping template.
+
+**Amazon Web Services.** (n.d.). *Burstable performance instances.* Amazon EC2 User Guide.
+https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/burstable-performance-instances.html
+(accessed 15 September 2026)
+
+> Used in: [`docs/baselines/task2-build.md`](baselines/task2-build.md) — explains why a
+> `t3.micro`'s `CPUCreditBalance` running low throttles the instance to baseline CPU, which is
+> the root cause the Section 3 load test traced the gateway-call fallback behaviour to.
