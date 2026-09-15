@@ -20,17 +20,24 @@
  *
  * WHAT THE STATUS-CHANGE TARGET ACTUALLY MEASURES
  *
- * POST /bookings/1/cancel mutates state at most once per environment: the first successful
- * call transitions booking 1 from pending to cancelled (bookingService.cancel /
+ * POST /bookings/:id/cancel mutates state at most once per environment: the first successful
+ * call transitions the booking from pending to cancelled (bookingService.cancel /
  * bookingRepository.cancelPending), guarded by the UPDATE's own WHERE clause. Every call after
  * that -- including every other connection racing it in the same run -- gets a guarded no-op.
  * That race is the point: this measures write latency and lock contention on one row under
  * concurrent conflicting writes, which is exactly the shape of load a booking-accept endpoint
- * sees for real. For a fair before/after comparison, reseed the database before each
- * environment's run so booking 1 starts 'pending' both times.
+ * sees for real.
+ *
+ * BOOKING_ID must be a fresh 'pending' booking owned by the requester demo account every time
+ * this runs, or the whole target measures the no-op branch instead of a real transition. This
+ * matters more than it looks: the Task 1 baseline and the Task 2 build share the same RDS
+ * instance (both point at bridgeability-db), so a booking cancelled during one run stays
+ * cancelled for the other -- there is no separate copy of the data per environment. Passing a
+ * different BOOKING_ID for the second run is what a full database reseed would otherwise be
+ * needed for.
  *
  * Usage:
- *   BASE_URL=http://<env>.elasticbeanstalk.com node scripts/loadtest.js [duration-seconds] [connections]
+ *   BASE_URL=http://<env>.elasticbeanstalk.com BOOKING_ID=1 node scripts/loadtest.js [duration-seconds] [connections]
  *
  * duration-seconds defaults to 20, connections defaults to 10 per target -- deliberately
  * modest. The point is a repeatable comparison between two environments, not a stress test
@@ -41,6 +48,7 @@
 const autocannon = require('autocannon');
 
 const baseUrl = process.env.BASE_URL;
+const bookingId = process.env.BOOKING_ID || '1';
 const duration = Number(process.argv[2] || 20);
 const connections = Number(process.argv[3] || 10);
 
@@ -194,7 +202,7 @@ async function runFetchTarget(name, { path, method = 'GET', headers = {} }) {
 }
 
 async function main() {
-  console.log(`loadtest: BASE_URL=${baseUrl} duration=${duration}s connections=${connections}`);
+  console.log(`loadtest: BASE_URL=${baseUrl} BOOKING_ID=${bookingId} duration=${duration}s connections=${connections}`);
 
   console.log('\nsigning in as requester and admin demo accounts...');
   const requester = await signIn(DEMO.requester);
@@ -213,9 +221,9 @@ async function main() {
     path: '/services/1',
   });
 
-  results.bookingDetail = await runTarget('GET /bookings/1 (authenticated, requester)', {
+  results.bookingDetail = await runTarget(`GET /bookings/${bookingId} (authenticated, requester)`, {
     method: 'GET',
-    path: '/bookings/1',
+    path: `/bookings/${bookingId}`,
     headers: { cookie: requester.cookie },
   });
 
@@ -225,9 +233,9 @@ async function main() {
     headers: { cookie: admin.cookie },
   });
 
-  results.statusChange = await runFetchTarget('POST /bookings/1/cancel (authenticated, requester -- mutates once, see file header)', {
+  results.statusChange = await runFetchTarget(`POST /bookings/${bookingId}/cancel (authenticated, requester -- mutates once, see file header)`, {
     method: 'POST',
-    path: '/bookings/1/cancel',
+    path: `/bookings/${bookingId}/cancel`,
     headers: {
       cookie: requester.cookie,
       'x-csrf-token': requester.csrfToken,
