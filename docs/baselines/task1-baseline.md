@@ -66,12 +66,18 @@ the bottleneck, and lets that read path scale independently of it.
   live) is still worth building for the report, since Section 3 explicitly wants a screenshot,
   not just a table -- see `docs/task2-plan.md`, B3, for the dashboard layout this feeds into
   once Task 2's environment exists alongside this one.
-- **X-Ray service map.** X-Ray is wired into the app (`src/lib/xray.js`) and the daemon is
-  enabled (`.ebextensions/02-options.config`), and the load test almost certainly generated
-  traces, but this session's own IAM role does not have `xray:GetTraceSummaries` to confirm via
-  CLI. Check the X-Ray console directly: Services → the map should show Express → RDS /
-  DynamoDB / S3 as separate nodes. If it is empty, that is itself worth knowing before Task 2
-  builds on the assumption that X-Ray is working.
+- **X-Ray service map -- confirmed unreachable, not just unchecked.** X-Ray is wired into the
+  app correctly (verified by reading the code directly): `src/lib/xray.js` wraps the `mysql2`
+  pool and the DynamoDB/S3 SDK clients, `app.js` places `xrayExpress.openSegment('BridgeAbility')`
+  right after `/health` and `xrayExpress.closeSegment()` right before the error handler, and
+  `.ebextensions/02-options.config` enables the daemon. Whether traces actually exist cannot be
+  confirmed by anyone in this AWS Academy account, though -- both the CLI (`AccessDeniedException`
+  on `xray:GetTraceSummaries`) and the console ("This IAM user does not have permission to view
+  the service map for this account", screenshotted directly) refuse the same `voclabs` role. This
+  is the same category of constraint as "the lab blocks creating custom IAM roles" (`CLAUDE.md`)
+  -- a permanent property of the Learner Lab account, not a step either of us missed. Report the
+  code-level implementation as evidence for Section 2 (Design & Implementation); do not claim a
+  verified service map for Section 3, since it cannot be produced under this account.
 
 ## A defect found while capturing this
 

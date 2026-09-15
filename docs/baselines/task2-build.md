@@ -130,5 +130,12 @@ https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#dashbo
 
 - **A live screenshot of the dashboard above**, ideally taken while load is running rather than
   idle (`docs/task2-plan.md`, B3) — needs a browser with console access.
-- **X-Ray service map.** Same as the Task 1 baseline — this session's IAM role lacks
-  `xray:GetTraceSummaries`; check the console directly.
+- **X-Ray service map -- confirmed unreachable under this account, not just unchecked.** Same
+  finding as the Task 1 baseline, now confirmed two ways: the CLI (`AccessDeniedException` on
+  `xray:GetTraceSummaries`) and the X-Ray console itself, screenshotted directly, showing "This
+  IAM user does not have permission to view the service map for this account." The `voclabs`
+  role AWS Academy assigns has X-Ray read access blocked entirely for every user under this
+  account -- not a missing step, a permanent property of the Learner Lab. The code-level
+  implementation (`src/lib/xray.js`, `app.js`'s `xrayExpress.openSegment`/`closeSegment`
+  placement) is real and correct; a verified service map or trace list is not obtainable to
+  screenshot for Section 3 under this account.
