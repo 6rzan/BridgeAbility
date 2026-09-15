@@ -114,10 +114,21 @@ was never the bottleneck. The new signal in Task 2 is `CPUCreditBalance`, which 
 the Task 1 architecture's own load pattern (no outbound HTTPS calls from the app) would ever
 draw down noticeably; Task 2's added outbound calls to SNS and API Gateway do.
 
+## CloudWatch dashboard
+
+Created: **`BridgeAbility-Task1-vs-Task2`**, nine widgets — EC2 CPU for both instances side by
+side, the shared RDS instance's CPU/connections, the Task 2 instance's `CPUCreditBalance` (the
+finding above, given its own widget on purpose), Lambda invocations/duration/errors for all
+three microservices, API Gateway count/latency for MS-2 and MS-3, the SQS queue depth and DLQ
+for MS-1, and DynamoDB read capacity across all three tables.
+
+```
+https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#dashboards/dashboard/BridgeAbility-Task1-vs-Task2
+```
+
 ## What is not yet captured
 
-- **A CloudWatch dashboard screenshot with both environments side by side, taken live.** The
-  numbers above are real, pulled via `get-metric-data`; a proper dashboard widget layout is
-  still worth building for the report (`docs/task2-plan.md`, B3).
+- **A live screenshot of the dashboard above**, ideally taken while load is running rather than
+  idle (`docs/task2-plan.md`, B3) — needs a browser with console access.
 - **X-Ray service map.** Same as the Task 1 baseline — this session's IAM role lacks
   `xray:GetTraceSummaries`; check the console directly.
