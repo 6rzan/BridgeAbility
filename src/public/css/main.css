@@ -1,34 +1,19 @@
-/* ==========================================================================
-   BridgeAbility design system
-   --------------------------------------------------------------------------
-   Trust-first public-service product UI. Every colour below is measured, not
-   guessed: `node scripts/check-contrast.js` asserts all 17 foreground/background
-   pairs against WCAG 2.2 (4.5:1 text, 3:1 non-text) and fails if any regresses.
-
-   Typeface: a humanist system stack. No CDN is permitted by our Content Security
-   Policy, and system faces honour the OS font-size and font-smoothing settings a
-   reader has already chosen -- which matters more on a product whose users
-   include people with low vision than a bespoke display face would.
-   ========================================================================== */
-
 :root {
-  /* Colour -- measured in scripts/check-contrast.js */
-  --ink: #12212b;           /* 16.43:1 on page */
-  --muted: #4c5c68;         /*  6.91:1 on page */
-  --primary: #0b5d6b;       /*  7.52:1 on page */
-  --primary-hover: #084651; /* 10.47:1 with white */
-  --danger: #a0201c;        /*  7.73:1 on page */
-  --success: #1b5e20;       /*  7.87:1 on page */
-  --warning: #8a4b08;       /*  6.79:1 on page */
+
+  --ink: #12212b;
+  --muted: #4c5c68;
+  --primary: #0b5d6b;
+  --primary-hover: #084651;
+  --danger: #a0201c;
+  --success: #1b5e20;
+  --warning: #8a4b08;
   --page: #ffffff;
   --surface: #f4f7f8;
-  --border: #7a8e99;        /*  3.41:1 on page -- meets SC 1.4.11 */
+  --border: #7a8e99;
 
-  /* Spacing -- 4px base */
   --s1: 0.25rem; --s2: 0.5rem;  --s3: 0.75rem; --s4: 1rem;
   --s5: 1.5rem;  --s6: 2rem;    --s7: 3rem;    --s8: 4rem;
 
-  /* Type -- user-scalable via the text-size control, which sets --type-scale */
   --type-scale: 1;
   --text-sm: calc(0.875rem * var(--type-scale));
   --text-base: calc(1rem * var(--type-scale));
@@ -38,15 +23,13 @@
   --text-3xl: calc(2.25rem * var(--type-scale));
 
   --radius: 6px;
-  /* Depth carries an offset and a soft blur -- never a zero-offset halo. */
+
   --shadow: 0 1px 2px rgba(18, 33, 43, 0.08), 0 4px 12px rgba(18, 33, 43, 0.06);
 
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --measure: 68ch; /* body measure inside the 65-75ch band */
+  --measure: 68ch;
 }
 
-/* High-contrast mode -- a user preference, not a media query, so it is togglable
-   independently of the operating system setting. */
 :root[data-contrast="high"] {
   --ink: #000000;
   --muted: #1a1a1a;
@@ -72,13 +55,10 @@ body {
   line-height: 1.6;
   color: var(--ink);
   background: var(--page);
-  /* Nothing may spill horizontally, down to a 320px viewport. */
+
   overflow-wrap: break-word;
 }
 
-/* --- Motion -------------------------------------------------------------- */
-/* Motion is deliberately near-zero: transitions are functional feedback only.
-   Users who ask for less get none. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -88,10 +68,6 @@ body {
   }
 }
 
-/* --- Focus (WCAG 2.2 SC 2.4.7, 2.4.11, 1.4.11) ---------------------------- */
-/* A dual ring: the white inner band separates the indicator from a coloured
-   control (7.52:1 on primary), the ink outer band carries contrast against the
-   page (16.43:1). Both measured in scripts/check-contrast.js. */
 :focus-visible {
   outline: 3px solid var(--ink);
   outline-offset: 2px;
@@ -100,14 +76,12 @@ body {
 }
 :focus:not(:focus-visible) { outline: none; }
 
-/* SC 2.4.11 -- nothing may sit on top of the element that has focus. */
 :target,
 a:focus-visible, button:focus-visible,
 input:focus-visible, select:focus-visible, textarea:focus-visible {
   scroll-margin-top: var(--s8);
 }
 
-/* --- Skip link ------------------------------------------------------------ */
 .skip-link {
   position: absolute;
   left: var(--s4);
@@ -123,7 +97,6 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 }
 .skip-link:focus { top: 0; }
 
-/* --- Layout --------------------------------------------------------------- */
 .container {
   width: 100%;
   max-width: 72rem;
@@ -134,9 +107,6 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 main { display: block; padding-block: var(--s6) var(--s8); }
 .prose { max-width: var(--measure); }
 
-/* --- Typography ----------------------------------------------------------- */
-/* Headings take more space above than below, so a heading reads as belonging to
-   the content that follows rather than floating between two blocks. */
 h1, h2, h3, h4 {
   margin: 0 0 var(--s3);
   line-height: 1.25;
@@ -158,7 +128,6 @@ p { margin: 0 0 var(--s4); max-width: var(--measure); }
 a { color: var(--primary); text-decoration-thickness: 1px; text-underline-offset: 2px; }
 a:hover { color: var(--primary-hover); }
 
-/* --- Header and navigation ------------------------------------------------ */
 .site-header {
   border-bottom: 1px solid var(--border);
   background: var(--page);
@@ -191,8 +160,7 @@ a:hover { color: var(--primary-hover); }
   padding: 0;
   list-style: none;
 }
-/* Every interactive target clears 24x24 CSS px (SC 2.5.8). Real controls get
-   44px of height, which is the comfortable floor rather than the legal one. */
+
 .site-nav a {
   display: inline-flex;
   align-items: center;
@@ -209,7 +177,6 @@ a:hover { color: var(--primary-hover); }
   box-shadow: inset 0 -2px 0 var(--primary);
 }
 
-/* --- Buttons -------------------------------------------------------------- */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -239,7 +206,6 @@ a:hover { color: var(--primary-hover); }
   pointer-events: none;
 }
 
-/* --- Forms ---------------------------------------------------------------- */
 .field { margin-bottom: var(--s5); max-width: 34rem; }
 .field label { display: block; margin-bottom: var(--s2); font-weight: 600; }
 .field__hint { display: block; margin-bottom: var(--s2); color: var(--muted); font-size: var(--text-sm); }
@@ -257,8 +223,6 @@ a:hover { color: var(--primary-hover); }
 }
 .textarea { min-height: 8rem; resize: vertical; }
 
-/* Errors are stated in text and bound with aria-describedby. Colour reinforces
-   the message; it is never the only signal carrying it. */
 .field__error {
   display: flex;
   align-items: flex-start;
@@ -276,12 +240,6 @@ a:hover { color: var(--primary-hover); }
 fieldset { margin: 0 0 var(--s5); padding: 0; border: 0; }
 legend { padding: 0; margin-bottom: var(--s2); font-weight: 600; }
 
-/* A checkbox and its label are one target, not two. The whole pill is clickable and
-   is comfortably past the 24x24 CSS px floor of WCAG 2.2 SC 2.5.8, which matters most
-   to the people this platform is for -- a small square is the hardest control to hit
-   with a tremor or a head pointer. The box itself is scaled up rather than replaced by
-   a custom drawing, so it keeps the platform's own checked state and high-contrast
-   rendering. */
 .checkbox {
   display: inline-flex;
   align-items: center;
@@ -296,10 +254,6 @@ legend { padding: 0; margin-bottom: var(--s2); font-weight: 600; }
 .checkbox label { margin: 0; font-weight: 500; cursor: pointer; }
 .checkbox:focus-within { outline: 3px solid var(--ink); outline-offset: 2px; }
 
-/* --- Alerts --------------------------------------------------------------- */
-/* A 1px border and a tinted ground, with an authored icon carrying the meaning.
-   Deliberately not a thick coloured left rule: that pattern conveys nothing to a
-   screen reader and reads as decoration. */
 .alert {
   display: flex;
   align-items: flex-start;
@@ -317,9 +271,6 @@ legend { padding: 0; margin-bottom: var(--s2); font-weight: 600; }
 .alert--warning { border-color: var(--warning); color: var(--warning); }
 .alert strong { color: inherit; }
 
-/* --- Panels --------------------------------------------------------------- */
-/* Panels group related content. They are never nested, and never used as a
-   uniform icon/heading/text grid standing in for page structure. */
 .panel {
   padding: var(--s5);
   border: 1px solid var(--border);
@@ -330,13 +281,6 @@ legend { padding: 0; margin-bottom: var(--s2); font-weight: 600; }
 .panel + .panel { margin-top: var(--s4); }
 .panel__title { margin: 0 0 var(--s2); font-size: var(--text-lg); }
 
-/* --- Status pills --------------------------------------------------------- */
-/* Three signals, and the tint is the weakest of them: the status word carries the
-   meaning, a distinct icon silhouette carries it again as shape, and the colour
-   only reinforces what both already said. Accepted and completed share the green
-   deliberately -- the check and the ringed check are what separate them, which is
-   the point of SC 1.4.1. The four tints are the palette's measured foreground
-   colours, so scripts/check-contrast.js already covers every one of them. */
 .status {
   display: inline-flex;
   align-items: center;
@@ -356,9 +300,6 @@ legend { padding: 0; margin-bottom: var(--s2); font-weight: 600; }
 .status--rejected,
 .status--cancelled { color: var(--danger); }
 
-/* --- Tables --------------------------------------------------------------- */
-/* Below 768px each row becomes a stacked block using the header labels carried
-   in data-label, so a table reflows instead of overflowing. */
 .table-wrap { margin-bottom: var(--s5); }
 table { width: 100%; border-collapse: collapse; }
 caption { text-align: left; padding-bottom: var(--s3); color: var(--muted); }
@@ -386,16 +327,12 @@ th { font-weight: 650; }
   .table--reflow td:not(:last-child) { border-bottom: 1px solid var(--surface); }
 }
 
-/* --- Icons ---------------------------------------------------------------- */
-/* Authored SVG at a single 1.75 stroke weight. No emoji or unicode glyph is used
-   as an icon anywhere in this application. */
 .icon {
   width: 1.25em; height: 1.25em;
   fill: none; stroke: currentColor;
   stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round;
 }
 
-/* --- Utilities ------------------------------------------------------------ */
 .visually-hidden {
   position: absolute !important;
   width: 1px; height: 1px;
@@ -407,14 +344,12 @@ th { font-weight: 650; }
 }
 .stack > * + * { margin-top: var(--s4); }
 .cluster { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: center; }
-/* A cluster whose two ends are pushed apart, e.g. a status pill on the left, a count on the
-   right (admin/reports/index.ejs). */
+
 .cluster--spread { justify-content: space-between; }
 .grid { display: grid; gap: var(--s4); }
 .page-head { margin-bottom: var(--s6); }
 .empty-state { padding: var(--s7) var(--s4); text-align: center; color: var(--muted); }
 
-/* --- Footer --------------------------------------------------------------- */
 .site-footer {
   border-top: 1px solid var(--border);
   padding-block: var(--s5);
@@ -422,7 +357,6 @@ th { font-weight: 650; }
   font-size: var(--text-sm);
 }
 
-/* --- Accessibility toolbar ------------------------------------------------ */
 .a11y-bar {
   display: flex;
   flex-wrap: wrap;
@@ -453,28 +387,19 @@ th { font-weight: 650; }
   border-color: var(--primary);
 }
 
-/* --- Breakpoints ---------------------------------------------------------- */
-/* Mobile-first. Tested at 360, 768 and 1280; nothing scrolls sideways at 320. */
-@media (min-width: 48em) {          /* 768px */
+@media (min-width: 48em) {
   .container { padding-inline: var(--s5); }
   .grid--two   { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .grid--split { grid-template-columns: minmax(0, 18rem) minmax(0, 1fr); }
 }
 
-@media (min-width: 80em) {          /* 1280px */
+@media (min-width: 80em) {
   .container { padding-inline: var(--s6); }
   .grid--three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
-/* --- Form details added with authentication ------------------------------- */
-/* The error paragraph is always in the DOM so its id can sit in aria-describedby
-   from the start. It is `display: flex` when shown, and an element's display
-   beats the [hidden] attribute's, so hiding it has to be stated explicitly --
-   without this line every form renders an empty error slot under each field. */
 .field__error[hidden] { display: none; }
 
-/* Radio and checkbox rows. 24px is the WCAG 2.2 SC 2.5.8 minimum target size;
-   the label is part of the target, which is why it carries the padding. */
 .field label.cluster {
   display: flex;
   align-items: flex-start;
@@ -495,22 +420,14 @@ th { font-weight: 650; }
 
 fieldset .field__hint { margin-bottom: var(--s4); }
 
-/* --- Description lists ---------------------------------------------------- */
 dl { margin: 0; }
 dt { margin-bottom: var(--s1); }
 dd { margin: 0; }
 
-/* --- Lists inside alerts -------------------------------------------------- */
-/* The error summary is a real list of links, so it keeps list semantics and
-   markers rather than being flattened into a paragraph. */
 .alert__body ul { margin: 0; padding-left: var(--s4); }
 .alert__body li + li { margin-top: var(--s2); }
 .alert__body a { color: inherit; }
 
-/* --- Service catalogue (F1) ----------------------------------------------- */
-/* Cards are a grid of equal-width columns that collapse to one column on a
-   phone. minmax(0, 1fr) rather than 1fr so a long unbroken word in a title
-   cannot push a column wider than its share and force a sideways scroll. */
 .card-grid {
   display: grid;
   gap: var(--s4);
@@ -530,8 +447,6 @@ dd { margin: 0; }
   overflow: hidden;
 }
 
-/* A fixed aspect ratio keeps the grid from lurching as images arrive, which is
-   the layout shift that makes a list feel broken while it loads. */
 .card__image {
   width: 100%;
   aspect-ratio: 16 / 9;
@@ -571,8 +486,6 @@ dd { margin: 0; }
   margin-bottom: var(--s5);
 }
 
-/* The category tag is a label, not a status, so it stays neutral -- reserving
-   the coloured pills for booking state keeps that signal meaningful. */
 .tag {
   display: inline-block;
   padding: var(--s1) var(--s2);
@@ -587,15 +500,12 @@ dd { margin: 0; }
 .filters .field { max-width: none; }
 
 .results-count { margin-bottom: var(--s4); color: var(--muted); }
-/* The count takes focus after a page change, so it needs a visible ring. */
+
 .results-count:focus-visible { outline: 3px solid var(--ink); outline-offset: 4px; }
 
 .breadcrumb { margin-bottom: var(--s5); font-size: var(--text-sm); }
 .breadcrumb a { display: inline-flex; align-items: center; gap: var(--s2); }
 
-/* --- Pagination ------------------------------------------------------------ */
-/* Targets are 44px so they clear WCAG 2.2 SC 2.5.8's 24px minimum with room to
-   spare -- page numbers are small text and easy to miss with an imprecise tap. */
 .pagination ul {
   display: flex;
   flex-wrap: wrap;
@@ -625,8 +535,6 @@ dd { margin: 0; }
   font-weight: 650;
 }
 
-/* While a filter request is in flight the results dim slightly. Paired with
-   aria-busy, which is what actually tells assistive technology. */
 [data-results-region][aria-busy="true"] { opacity: 0.6; }
 @media (prefers-reduced-motion: no-preference) {
   [data-results-region] { transition: opacity 120ms ease-out; }
@@ -636,10 +544,6 @@ dd { margin: 0; }
   .card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* --- Bookings (F2) --------------------------------------------------------- */
-/* The status filter. Links rather than a form, so every filter is a real URL that
-   can be bookmarked and reached with the Back button, and so it needs no
-   scripting at all. 44px targets clear SC 2.5.8's 24px minimum. */
 .filter-bar { margin-bottom: var(--s5); }
 .filter-bar ul {
   display: flex;
@@ -663,8 +567,7 @@ dd { margin: 0; }
   font-weight: 600;
 }
 .filter-bar a:hover { background: var(--surface); color: var(--primary); }
-/* The filter in force is filled and bolder as well as recoloured, and carries
-   aria-current, so which one is active never rests on colour alone. */
+
 .filter-bar a[aria-current] {
   background: var(--primary);
   border-color: var(--primary);
@@ -672,13 +575,8 @@ dd { margin: 0; }
 }
 .filter-bar__count { font-weight: 400; }
 
-/* Free text the requester typed, kept on the lines they typed it on. */
 .notes { white-space: pre-line; }
 
-/* The booking history from DynamoDB. The order is the meaning, so it stays an
-   <ol>; the numbers are replaced by a rule and its dots, and role="list" in the
-   template restores the list semantics that list-style:none takes away in
-   Safari and VoiceOver. */
 .timeline {
   margin: 0;
   padding: 0 0 0 var(--s5);
@@ -687,9 +585,7 @@ dd { margin: 0; }
 }
 .timeline__item { position: relative; padding-bottom: var(--s5); }
 .timeline__item:last-child { padding-bottom: 0; }
-/* Centred on the rule: the list's 2px border plus 24px of padding puts the
-   rule's centre 25px left of the item, and the dot is 14px across including
-   its own border. */
+
 .timeline__item::before {
   content: "";
   position: absolute;

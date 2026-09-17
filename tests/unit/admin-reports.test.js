@@ -11,8 +11,6 @@ const {
   COMPLETION_LABELS,
 } = require('../../src/services/adminReportService');
 
-// --- withZeroCounts ------------------------------------------------------------------
-
 test('a status the GROUP BY returned is passed through unchanged', () => {
   const filled = withZeroCounts(['pending', 'completed'], { pending: 4, completed: 2 });
   assert.deepEqual(filled, { pending: 4, completed: 2 });
@@ -31,15 +29,8 @@ test('an empty result fills every key with 0', () => {
 test('a key nobody asked for is not invented from the raw counts', () => {
   const filled = withZeroCounts(['pending'], { pending: 1, cancelled: 9 });
   assert.deepEqual(filled, { pending: 1, cancelled: 9 });
-  // withZeroCounts only guarantees the keys it was given are present -- it does not strip
-  // anything extra the raw query happened to include.
-});
 
-// --- COMPLETION_LABELS completeness -----------------------------------------------------
-//
-// The same class of lock-step check as bookingSchemas.js's STATUS_LABELS/STATUS_EXPLANATIONS
-// pair and adminProviderSchemas.js's PROVIDER_STATUS_LABELS -- every status this file knows
-// about must have something to show for it.
+});
 
 test('every completion status has a label', () => {
   for (const status of COMPLETION_STATUSES) {

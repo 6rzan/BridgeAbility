@@ -1,23 +1,9 @@
 #!/usr/bin/env bash
-# Creates both DynamoDB tables this application needs, from their tracked definitions.
-#
-# Idempotent: if a table already exists this reports it and moves on rather than failing, so
-# it is safe to re-run after every AWS Academy lab reset (the tables do not survive a reset any
-# more than the RDS instance or the Beanstalk environment do).
-#
-# Usage: AWS_REGION=us-east-1 bash db/dynamodb/create-tables.sh
+
 set -euo pipefail
 
 region="${AWS_REGION:-us-east-1}"
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# Every definition is read with `cat` and handed to Node over stdin, never as a path Node
-# itself resolves. On Windows, `cd ... && pwd` (used for `here` above) produces an MSYS-style
-# path like /c/Users/..., which bash's own file-reading (cat, the `<` redirection below) always
-# understands -- but a *native* Windows Node.js binary does not, so `require('/c/Users/...')`
-# fails with MODULE_NOT_FOUND even though the file is right there. Reading over stdin sidesteps
-# the whole path-format question: bash opens the file however it needs to, Node only ever sees
-# bytes.
 
 create_table() {
   local definition="$1"
@@ -38,13 +24,6 @@ create_table() {
   reconcile_gsis "$json" "$table_name"
 }
 
-# create-table only runs once, on a table that does not yet exist -- a table left over from a
-# partial or older provisioning attempt (exactly what this project hit: a BridgeAbility_
-# BookingTimeline table existed with GSI-1 but not GSI-2, from a session that never finished)
-# needs its GSIs reconciled separately, since DynamoDB has no "create table or add whatever is
-# missing" operation. This compares the tracked definition's GSI names against what the live
-# table actually has and adds each one that is missing, one at a time (UpdateTable allows only
-# one GSI change per call).
 reconcile_gsis() {
   local json="$1"
   local table_name="$2"
@@ -56,9 +35,6 @@ reconcile_gsis() {
   " <<< "$json")"
   [ -z "$wanted_names" ] && return
 
-  # --output text joins multiple values with a TAB, not a space (confirmed directly -- `cat -A`
-  # on real output showed GSI-2^IGSI-1, not GSI-2 GSI-1), so this converts to one name per line
-  # and matches a whole line, rather than assuming a space-separated list.
   local existing_names
   existing_names="$(aws dynamodb describe-table --table-name "$table_name" --region "$region" \
     --query 'Table.GlobalSecondaryIndexes[].IndexName' --output text 2>/dev/null | tr '\t' '\n' || true)"
@@ -95,9 +71,6 @@ create_table "$here/booking-timeline-table.json"
 create_table "$here/sessions-table.json"
 create_table "$here/notifications-table.json"
 
-# TTL cannot be set at creation time -- it is a separate call, and it errors if TTL is already
-# enabled, so check first. See sessionStore.js for why expiresAt is also enforced in code: TTL
-# deletion is documented as "typically" happening within days of expiry, not at it.
 echo "dynamodb: checking TTL on BridgeAbility_Sessions"
 ttl_status="$(aws dynamodb describe-time-to-live \
   --table-name BridgeAbility_Sessions --region "$region" \

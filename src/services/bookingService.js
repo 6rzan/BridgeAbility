@@ -14,31 +14,8 @@ const {
   CANCELLABLE,
 } = require('../validation/bookingSchemas');
 
-/**
- * Booking submission and status tracking (F2).
- *
- * This is the one place in the application where both databases are written for the same
- * user action, so the ordering rule is stated here and followed everywhere:
- *
- *   1. MySQL commits first. It holds the authoritative status of a booking.
- *   2. DynamoDB is appended afterwards, outside that transaction.
- *   3. If step 2 fails, the booking still exists and the failure is logged for reconciliation.
- *
- * The alternative ordering -- history first -- can leave a timeline entry for a booking that
- * was never created, which is worse: the requester is told their request was sent when no
- * provider will ever see it. A booking with one missing history line is visibly incomplete
- * and recoverable. There is no distributed transaction across RDS and DynamoDB and pretending
- * otherwise would be the real mistake.
- */
-
 const PER_PAGE = 8;
 
-/**
- * A DynamoDB append that fails must not fail the user's action, but it must not vanish either.
- *
- * The log line is deliberately greppable and carries everything needed to replay the event by
- * hand: this is the reconciliation record, and CloudWatch Logs is where it lands.
- */
 async function appendEventSafely(payload) {
   try {
     return await timelineRepository.appendEvent(payload);
@@ -55,7 +32,6 @@ async function appendEventSafely(payload) {
   }
 }
 
-/** Page arithmetic, shared with the catalogue's rules so the two lists behave the same way. */
 function paginate(totalItems, page, perPage = PER_PAGE) {
   const totalPages = Math.max(1, Math.ceil(totalItems / perPage));
   const currentPage = Math.min(Math.max(1, page), totalPages);
@@ -74,13 +50,6 @@ function paginate(totalItems, page, perPage = PER_PAGE) {
   };
 }
 
-/**
- * Decorate a booking row with everything a view needs and nothing it has to work out.
- *
- * The two timestamps are converted differently on purpose: the requested time is a wall-clock
- * reading and is read straight back, while `created_at` is a real instant and is shifted onto
- * the Malaysian clock first. See the comment above formatWallClock in the schemas module.
- */
 function decorate(booking) {
   return {
     ...booking,
@@ -93,13 +62,6 @@ function decorate(booking) {
   };
 }
 
-/**
- * Submit a booking request.
- *
- * Returns a discriminated result rather than throwing, because "the service was withdrawn
- * while you were filling in the form" is an ordinary outcome the requester has to be told
- * about clearly, not an exception.
- */
 async function submit({ criteria, requester }) {
   const service = await serviceRepository.findVisibleServiceById(criteria.serviceId);
 
@@ -116,13 +78,12 @@ async function submit({ criteria, requester }) {
   });
 
   if (!booking) {
-    // The visibility re-check inside the transaction lost a race with a withdrawal.
+
     return { outcome: 'unavailable', bookingId: null };
   }
 
   if (!created) {
-    // A resubmission of the same form. The booking already exists; say so rather than
-    // pretending a second one was made.
+
     return { outcome: 'duplicate', bookingId: booking.bookingId };
   }
 
@@ -140,7 +101,6 @@ async function submit({ criteria, requester }) {
   return { outcome: 'created', bookingId: booking.bookingId, reason };
 }
 
-/** One page of this requester's bookings, with the counts the filter menu shows. */
 async function listForRequester(requesterId, { status, page }) {
   const totalItems = await bookingRepository.countForRequester(requesterId, { status });
   const pagination = paginate(totalItems, page);
@@ -161,12 +121,6 @@ async function listForRequester(requesterId, { status, page }) {
   };
 }
 
-/**
- * One booking and its history, or null if this requester does not own it.
- *
- * A DynamoDB failure here degrades to an empty timeline with the booking still shown. The
- * status in MySQL is the fact the requester needs; the history is how it got there.
- */
 async function findForRequester(bookingId, requesterId) {
   const booking = await bookingRepository.findForRequester(bookingId, requesterId);
 
@@ -189,22 +143,13 @@ async function findForRequester(bookingId, requesterId) {
     timeline: timeline.map((event) => ({
       ...event,
       label: timelineRepository.EVENT_LABELS[event.event] || event.event,
-      // The label reads on a Malaysian clock; the datetime attribute stays the true UTC
-      // instant, which is what a machine-readable timestamp is supposed to carry.
+
       occurredLabel: formatWallClock(toKualaLumpur(event.occurredAt)),
     })),
     timelineAvailable,
   };
 }
 
-/**
- * Cancel a pending request.
- *
- * The guard is the UPDATE's own WHERE clause (see bookingRepository.cancelPending), so this
- * cannot cancel a booking a provider accepted a moment ago. Only a cancellation that actually
- * changed a row writes a timeline event -- a no-op must not leave a history line saying
- * something happened.
- */
 async function cancel({ bookingId, requester }) {
   const booking = await bookingRepository.findForRequester(bookingId, requester.id);
 

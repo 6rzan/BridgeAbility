@@ -1,50 +1,6 @@
 #!/usr/bin/env node
 'use strict';
 
-/**
- * Load-tests the four paths Section 3 compares between Task 1 and Task 2
- * (docs/task2-plan.md, B3): the public catalogue, a service detail page, the admin reports
- * page, and one status-changing POST. The same script runs against both environments so the
- * comparison is reproducible rather than eyeballed -- run it, reseed (`npm run migrate`), point
- * BASE_URL at the other environment, run it again.
- *
- * WHY THIS IS NODE, NOT A PLAIN autocannon CLI INVOCATION
- *
- * Two of the four target paths need an authenticated session, and the status-change POST needs
- * a valid CSRF token bound to that session. There is no way to get autocannon's CLI to sign in
- * first and carry the resulting cookie and token into every request it fires, so this drives
- * autocannon's own Node API instead, after doing the sign-in itself with the platform's real
- * flow (see src/middleware/csrf.js and src/middleware/session.js): fetch the login page for a
- * token, POST credentials, then re-fetch a page for the *rotated* token `rotateToken` issues on
- * sign-in, exactly as a real browser session would.
- *
- * WHAT THE STATUS-CHANGE TARGET ACTUALLY MEASURES
- *
- * POST /bookings/:id/cancel mutates state at most once per environment: the first successful
- * call transitions the booking from pending to cancelled (bookingService.cancel /
- * bookingRepository.cancelPending), guarded by the UPDATE's own WHERE clause. Every call after
- * that -- including every other connection racing it in the same run -- gets a guarded no-op.
- * That race is the point: this measures write latency and lock contention on one row under
- * concurrent conflicting writes, which is exactly the shape of load a booking-accept endpoint
- * sees for real.
- *
- * BOOKING_ID must be a fresh 'pending' booking owned by the requester demo account every time
- * this runs, or the whole target measures the no-op branch instead of a real transition. This
- * matters more than it looks: the Task 1 baseline and the Task 2 build share the same RDS
- * instance (both point at bridgeability-db), so a booking cancelled during one run stays
- * cancelled for the other -- there is no separate copy of the data per environment. Passing a
- * different BOOKING_ID for the second run is what a full database reseed would otherwise be
- * needed for.
- *
- * Usage:
- *   BASE_URL=http://<env>.elasticbeanstalk.com BOOKING_ID=1 node scripts/loadtest.js [duration-seconds] [connections]
- *
- * duration-seconds defaults to 20, connections defaults to 10 per target -- deliberately
- * modest. The point is a repeatable comparison between two environments, not a stress test
- * that could tip a t3.micro instance, the RDS free-tier class, or a Learner Lab account budget
- * into trouble.
- */
-
 const autocannon = require('autocannon');
 
 const baseUrl = process.env.BASE_URL;
@@ -57,14 +13,11 @@ if (!baseUrl) {
   process.exit(1);
 }
 
-// Passwords per README.md#demo-accounts: each demo password is the TP number of the role's
-// owner.
 const DEMO = {
   requester: { email: 'requester@bridgeability.demo', password: 'tp078281' },
   admin: { email: 'admin@bridgeability.demo', password: 'tp078792' },
 };
 
-/** Merge a response's Set-Cookie headers into a running `name=value` jar. */
 function mergeCookies(jar, response) {
   const setCookies = typeof response.headers.getSetCookie === 'function'
     ? response.headers.getSetCookie()
@@ -99,10 +52,6 @@ function extractCsrfFromForm(html) {
   return match[1];
 }
 
-/**
- * Signs in as one demo account, following the real double-submit CSRF flow, and returns the
- * cookie header string a subsequent request needs to act as that user.
- */
 async function signIn({ email, password }) {
   const jar = new Map();
 
@@ -125,8 +74,6 @@ async function signIn({ email, password }) {
     throw new Error(`loadtest: sign-in as ${email} did not redirect (got ${loginResponse.status}) -- check the password against README.md#demo-accounts`);
   }
 
-  // The CSRF token rotates on sign-in (rotateToken in src/middleware/csrf.js), so the token
-  // from the login page is now stale. Re-fetch any authenticated page for the current one.
   const dashboard = await fetch(new URL('/dashboard', baseUrl), {
     headers: { cookie: cookieHeader(jar) },
   });
@@ -147,22 +94,6 @@ async function runTarget(name, opts) {
   return result;
 }
 
-/**
- * A hand-rolled concurrent runner, used only for the status-change target. Not a style choice:
- * autocannon 8.0.0 has a real bug where a request carrying two custom headers whose VALUES
- * share an identical substring gets corrupted into a 404, which is exactly what a double-submit
- * CSRF request looks like (the same token in both `cookie` and `x-csrf-token`).
- *
- * Diagnosed by isolation against this live environment, not assumed: a bare POST (no headers)
- * gets the expected 403; `cookie` alone gets 403; `x-csrf-token` alone gets 403; `cookie` +
- * `x-csrf-token` set to an unrelated dummy string gets 403; only `cookie` + the SAME token
- * value repeated in `x-csrf-token` produces a 404. curl sent with the identical header values
- * gets the correct 302. No newer autocannon version exists to upgrade to (8.0.0 is latest).
- *
- * This reuses the same `fetch` this script already uses for sign-in -- which does not have the
- * bug -- fanning it out over `connections` concurrent loops for `duration` seconds, and reports
- * the same shape runTarget does so the two are comparable in the write-up.
- */
 async function runFetchTarget(name, { path, method = 'GET', headers = {} }) {
   console.log(`\n== ${name} (custom runner -- see file header, autocannon bug) ==`);
   const url = new URL(path, baseUrl);
@@ -176,7 +107,7 @@ async function runFetchTarget(name, { path, method = 'GET', headers = {} }) {
       const startedAt = Date.now();
       try {
         const response = await fetch(url, { method, headers, redirect: 'manual' });
-        await response.arrayBuffer(); // drain the body so the connection is free for the next request
+        await response.arrayBuffer();
         latencies.push(Date.now() - startedAt);
         const bucket = `${Math.floor(response.status / 100)}xx`;
         if (statusCounts[bucket] !== undefined) statusCounts[bucket] += 1;

@@ -25,7 +25,6 @@ const {
   parseServiceId,
 } = require('../../src/controllers/providerServiceController');
 
-/** A listing body that passes, so each test can change exactly one thing. */
 function validListing(overrides = {}) {
   return {
     title: 'Wheelchair-accessible airport transfer',
@@ -38,8 +37,6 @@ function validListing(overrides = {}) {
     ...overrides,
   };
 }
-
-// --- the listing itself -------------------------------------------------------
 
 test('a complete listing is accepted and its price becomes a number', () => {
   const parsed = listingSchema.safeParse(validListing());
@@ -54,9 +51,7 @@ test('provider_id and is_active cannot be set from the form', () => {
   const parsed = listingSchema.safeParse(validListing({ provider_id: 99, is_active: 0 }));
 
   assert.equal(parsed.success, true);
-  // zod strips unknown keys, so a hand-crafted POST naming another provider carries nothing
-  // through to the repository. This is the test that a stripped field is actually stripped
-  // rather than merely unused by the caller.
+
   assert.equal('provider_id' in parsed.data, false);
   assert.equal('is_active' in parsed.data, false);
 });
@@ -84,8 +79,7 @@ test('a negative price is refused and zero is accepted', () => {
 });
 
 test('a price with three decimal places is refused rather than rounded', () => {
-  // Rounding a price the provider typed would change what they are charging without telling
-  // them, which is worse than making them retype it.
+
   const parsed = listingSchema.safeParse(validListing({ price: '150.555' }));
   assert.equal(parsed.success, false);
   assert.match(parsed.error.issues[0].message, /two decimal places/);
@@ -95,10 +89,8 @@ test('a price that is not a number is refused', () => {
   assert.equal(listingSchema.safeParse(validListing({ price: 'free' })).success, false);
 });
 
-// --- availability -------------------------------------------------------------
-
 test('a single ticked day arrives as a string and is still read as a list', () => {
-  // A checkbox group posts one string when one box is ticked and an array when several are.
+
   const parsed = listingSchema.safeParse(validListing({ days: 'Sat' }));
 
   assert.equal(parsed.success, true);
@@ -117,8 +109,7 @@ test('hours without days are refused, and the error is put on the days field', (
   const parsed = listingSchema.safeParse(validListing({ days: undefined }));
 
   assert.equal(parsed.success, false);
-  // The message has to land on the control the user must change, or the error summary links
-  // them to the wrong place.
+
   assert.deepEqual(parsed.error.issues[0].path, ['days']);
 });
 
@@ -129,7 +120,7 @@ test('hours outside a 24-hour range are refused', () => {
 });
 
 test('days are stored in week order, not the order the boxes posted in', () => {
-  // Otherwise "Mon, Wed, Fri" renders as "Fri, Mon, Wed" on the public listing.
+
   const json = toAvailabilityJson({ days: ['Fri', 'Mon', 'Wed'], hours: '09:00-17:00' });
 
   assert.deepEqual(JSON.parse(json), { days: ['Mon', 'Wed', 'Fri'], hours: '09:00-17:00' });
@@ -140,15 +131,12 @@ test('no days means no availability document at all', () => {
 });
 
 test('the stored availability shape is the one the public detail page reads', () => {
-  // catalogueService.parseAvailability expects { days: [...], hours } and returns null for
-  // anything else, so a change to either side has to break a test rather than a page.
+
   const { parseAvailability } = require('../../src/services/catalogueService');
   const json = toAvailabilityJson({ days: ['Sat', 'Sun'], hours: null });
 
   assert.deepEqual(parseAvailability(json), { days: ['Sat', 'Sun'], hours: null });
 });
-
-// --- the upload request -------------------------------------------------------
 
 test('only the three image types are accepted', () => {
   for (const contentType of ['image/jpeg', 'image/png', 'image/webp']) {
@@ -159,8 +147,6 @@ test('only the three image types are accepted', () => {
     );
   }
 
-  // An SVG can carry script, and a PDF is not an image. Both are refused before anything is
-  // signed, which is what stops S3 accepting them at all.
   for (const contentType of ['image/svg+xml', 'application/pdf', 'text/html']) {
     assert.equal(
       uploadRequestSchema.safeParse({ contentType, contentLength: 1024 }).success,
@@ -180,8 +166,6 @@ test('an empty file and an oversized file are both refused', () => {
     false
   );
 });
-
-// --- image keys ---------------------------------------------------------------
 
 const UUID = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
 
@@ -208,9 +192,7 @@ test('a key minted for a listing is accepted for that listing', () => {
 });
 
 test('a key naming another provider or another listing is rejected', () => {
-  // THE TEST THIS FILE EXISTS FOR. The confirm step is a separate request from the presign
-  // step, so nothing but this check stops a caller posting a key that points at somebody
-  // else's object and attaching it to their own listing.
+
   const key = buildImageKey({
     providerId: 2,
     serviceId: 9,
@@ -236,7 +218,7 @@ test('a traversal or a wrong extension in a key is rejected', () => {
 });
 
 test('a provider id is matched whole, not as a prefix', () => {
-  // Without anchoring, provider 1 would match a key belonging to provider 11.
+
   const key = buildImageKey({
     providerId: 11,
     serviceId: 4,
@@ -248,11 +230,8 @@ test('a provider id is matched whole, not as a prefix', () => {
   assert.equal(isOwnedImageKey(key, { providerId: 11, serviceId: 4 }), true);
 });
 
-// --- confirming an upload -----------------------------------------------------
-
 test('an image cannot be attached without alt text', () => {
-  // The column is nullable because a listing legitimately has no image. What must never exist
-  // is an image with no description, and this is the only place that can be enforced.
+
   const parsed = imageConfirmSchema.safeParse({ key: 'services/provider-1/service-4/x.jpg', altText: '' });
 
   assert.equal(parsed.success, false);
@@ -277,11 +256,8 @@ test('real alt text is accepted and trimmed', () => {
   assert.equal(parsed.data.altText, 'Van with a deployed rear access ramp at a kerbside.');
 });
 
-// --- decoration ---------------------------------------------------------------
-
 test('a listing with bookings may be withdrawn but not deleted', () => {
-  // bookings.service_id is ON DELETE CASCADE, so deleting a booked listing would take other
-  // people's booking history with it. The page must not offer that.
+
   const booked = decorate({
     service_id: 1, title: 'x', category: 'transport', price: '10.00',
     is_active: 1, booking_count: 3, availability_json: null,
@@ -329,8 +305,6 @@ test('validated form data becomes exactly the columns the repository writes', ()
   });
 });
 
-// --- the controller's own helpers ---------------------------------------------
-
 test('a listing id must be a positive integer', () => {
   assert.equal(parseServiceId('4'), 4);
   assert.equal(parseServiceId('0'), null);
@@ -342,7 +316,7 @@ test('a listing id must be a positive integer', () => {
 });
 
 test('a rejected submission is redrawn with what the provider typed', () => {
-  // Retyping a description because a price had a typo is the fastest way to lose someone.
+
   const values = submittedValues({
     title: 'Airport transfer',
     category: 'transport',
@@ -397,8 +371,7 @@ test('a listing with no availability round-trips to empty controls', () => {
 });
 
 test('the days offered by the form are the days the schema accepts', () => {
-  // The checkboxes are rendered from DAYS and validated against DAYS, so a day that renders
-  // but is rejected cannot exist.
+
   for (const day of DAYS) {
     assert.equal(listingSchema.safeParse(validListing({ days: [day] })).success, true, day);
   }

@@ -1,16 +1,5 @@
 'use strict';
 
-/**
- * WCAG 2.2 relative-luminance contrast checker for the BridgeAbility palette.
- *
- * Algorithm from the W3C WCAG 2.2 definition of relative luminance and contrast ratio:
- * https://www.w3.org/TR/WCAG22/#dfn-relative-luminance  (accessed 2026-08-16)
- * https://www.w3.org/TR/WCAG22/#dfn-contrast-ratio      (accessed 2026-08-16)
- *
- * Run: node scripts/check-contrast.js
- * Exits non-zero if any declared pair fails its target, so it can gate a build.
- */
-
 function channel(value) {
   const c = value / 255;
   return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
@@ -32,7 +21,6 @@ function ratio(a, b) {
 const WHITE = '#ffffff';
 const SURFACE = '#f4f7f8';
 
-// [label, foreground, background, minimum required ratio]
 const pairs = [
   ['body text on page',          '#12212b', WHITE,     4.5],
   ['body text on surface',       '#12212b', SURFACE,   4.5],
@@ -45,11 +33,10 @@ const pairs = [
   ['white on danger button',     WHITE,     '#a0201c', 4.5],
   ['success text on page',       '#1b5e20', WHITE,     4.5],
   ['warning text on page',       '#8a4b08', WHITE,     4.5],
-  // Non-text contrast (WCAG 2.2 SC 1.4.11) needs 3:1, not 4.5:1.
+
   ['border on page',             '#7a8e99', WHITE,     3.0],
   ['border on surface',          '#7a8e99', SURFACE,   3.0],
-  // The focus indicator is a dual ring: a white inner band separates it from a coloured
-  // control, and an ink outer band carries the contrast against the page behind it.
+
   ['focus inner vs primary btn', WHITE,     '#0b5d6b', 3.0],
   ['focus inner vs danger btn',  WHITE,     '#a0201c', 3.0],
   ['focus outer vs page',        '#12212b', WHITE,     3.0],

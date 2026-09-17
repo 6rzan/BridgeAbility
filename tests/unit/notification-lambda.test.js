@@ -10,19 +10,14 @@ const {
   buildNotificationItem,
 } = require('../../services/notification/index.js');
 
-// --- parseRecord -------------------------------------------------------------------------------
-
 function sqsRecord(publishedMessage) {
-  // Mirrors the real shape: SNS -> SQS (no raw message delivery) wraps the published message in
-  // an envelope, so record.body is itself JSON, and .Message inside it is a second JSON string.
+
   return {
     messageId: 'sqs-msg-1',
     body: JSON.stringify({
       Type: 'Notification',
       MessageId: 'sns-msg-1',
-      // Not a real ARN shape (12-digit account id) on purpose -- scripts/secret-scan.sh flags any
-    // ARN-shaped 12-digit number, no exceptions, and this test does not need a realistic one to
-    // exercise parseRecord's envelope-unwrapping.
+
     TopicArn: 'arn:aws:sns:us-east-1:test-account:bridgeability-booking-events',
       Message: JSON.stringify(publishedMessage),
       Timestamp: '2026-09-15T02:00:00.000Z',
@@ -54,8 +49,6 @@ test('parseRecord rejects a message missing a required field', () => {
 test('parseRecord rejects a record whose body is not valid JSON', () => {
   assert.throws(() => parseRecord({ messageId: 'x', body: 'not json' }));
 });
-
-// --- buildNotificationItem ----------------------------------------------------------------------
 
 test('buildNotificationItem builds the PK/SK pair from the recipient and timestamp', () => {
   const item = buildNotificationItem({

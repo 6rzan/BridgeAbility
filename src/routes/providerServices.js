@@ -16,19 +16,6 @@ const {
 } = require('../controllers/providerServiceController');
 const { requireAuth, requireRole } = require('../middleware/authorize');
 
-/**
- * Provider listing management (F3).
- *
- * The two guards are applied to the whole `/provider` prefix rather than repeated per route,
- * so a route added to this file later cannot be published unguarded by forgetting one. They
- * are separate because they answer different questions: requireAuth sends a signed-out visitor
- * to sign in and brings them back here, while requireRole answers 403 to a requester or a
- * coordinator who is signed in but has no business here.
- *
- * Neither is the real defence. `provider_id` is resolved from the session inside every handler
- * and every statement in providerServiceRepository is keyed on it, so even a mistake in this
- * file cannot hand one organisation another organisation's listings.
- */
 const router = express.Router();
 
 router.use('/provider', requireAuth, requireRole('provider'));

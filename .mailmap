@@ -1,9 +1,3 @@
-# Maps the split git identities in this repo's history onto the four names in the workload
-# matrix (CLAUDE.md), so `git shortlog -sne` reads as one row per member. Does not rewrite any
-# commit -- it is a lookup table git applies when summarising history.
-#
-# Format: Canonical Name <canonical@email> Alias Name <alias@email>
-
 Taha Fahd Ahmed Mohammed <tahafahd40@gmail.com> Taha Thabit <tahafahd40@gmail.com>
 Taha Fahd Ahmed Mohammed <tahafahd40@gmail.com> Taha Fahd <tahafahd40@gmail.com>
 Taha Fahd Ahmed Mohammed <tahafahd40@gmail.com> Taha Fahd <125373395+6rzan@users.noreply.github.com>

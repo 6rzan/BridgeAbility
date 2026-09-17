@@ -1,19 +1,5 @@
 'use strict';
 
-/**
- * Integration suite entry point.
- *
- * Runs against a deployed URL -- there is no local database, no local DynamoDB and no mocked
- * AWS client anywhere in this project, so "integration" means the real Elastic Beanstalk
- * environment, the real RDS instance, the real DynamoDB tables and the real S3 bucket.
- *
- * Usage:
- *   BASE_URL=http://bridgeability-env.<hash>.us-east-1.elasticbeanstalk.com npm run test:integration
- *
- * BASE_URL defaults to nothing on purpose: a missing BASE_URL fails loudly at the top of the
- * suite rather than silently testing localhost, which this project does not run for demos.
- */
-
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
@@ -53,7 +39,7 @@ test('GET /services renders the public catalogue', { skip: !baseUrl }, async () 
 
 test('GET /login redirects an unauthenticated visitor to no dashboard', { skip: !baseUrl }, async () => {
   const response = await fetch(new URL('/dashboard', baseUrl), { redirect: 'manual' });
-  // Unauthenticated dashboard access is a redirect to sign-in, never a 200.
+
   assert.equal(response.status, 302);
   assert.match(response.headers.get('location') ?? '', /\/login$/);
 });

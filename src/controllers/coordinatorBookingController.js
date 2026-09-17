@@ -5,42 +5,28 @@ const assignmentRepository = require('../data/mysql/assignmentRepository');
 const { assignmentCreateSchema, completionUpdateSchema, COMPLETION_LABELS } = require('../validation/assignmentSchemas');
 const { fieldErrors } = require('../validation/authSchemas');
 
-/**
- * F7 -- a coordinator assigns a volunteer to a confirmed booking.
- * F8 -- a coordinator updates and logs how that assignment finished.
- *
- * Every route below is mounted behind requireRole('coordinator'). There is no per-row
- * ownership check anywhere here -- any coordinator may act on any booking, the same model F5
- * and F6 already use for administrators.
- */
-
 const DEFAULT_VIEW = 'awaiting';
 
-/** How each of the three tabs reads to a coordinator, in words. */
 const VIEW_LABELS = {
   awaiting: 'Awaiting assignment',
   assigned: 'Assigned',
   completed: 'Completed',
 };
 
-/** A booking id from the URL. Anything that is not a positive integer is simply not a booking. */
 function parseBookingId(raw) {
   const id = Number(raw);
   return Number.isInteger(id) && id > 0 ? id : null;
 }
 
-/** Which of the three tabs to show. Anything else falls back to the default rather than 404ing. */
 function parseView(raw) {
   return assignmentRepository.VIEWS.includes(raw) ? raw : DEFAULT_VIEW;
 }
 
-/** A page number can arrive from a link, so it is validated like anything else. */
 function parsePage(raw) {
   const page = Number.parseInt(raw, 10);
   return Number.isInteger(page) && page > 0 ? page : 1;
 }
 
-/** Preserve the active tab across pagination links. */
 function buildQueryString(view, { page } = {}) {
   const params = new URLSearchParams();
   if (view && view !== DEFAULT_VIEW) params.set('view', view);
@@ -49,7 +35,6 @@ function buildQueryString(view, { page } = {}) {
   return query ? `?${query}` : '';
 }
 
-/** GET /coordinator/bookings -- awaiting assignment, assigned, or completed. */
 async function getQueue(req, res, next) {
   try {
     const view = parseView(req.query.view);
@@ -75,10 +60,6 @@ async function getQueue(req, res, next) {
   }
 }
 
-/**
- * Everything the detail template needs, with sensible defaults for both forms it may show. Used
- * by the plain GET and by every 422 re-render, so the two never drift apart.
- */
 function detailViewModel(result, overrides = {}) {
   return {
     title: `Booking #${result.booking.booking_id}`,
@@ -97,7 +78,6 @@ function detailViewModel(result, overrides = {}) {
   };
 }
 
-/** GET /coordinator/bookings/:id -- one booking, its history, and whichever form applies. */
 async function getBookingDetail(req, res, next) {
   try {
     const bookingId = parseBookingId(req.params.id);
@@ -112,7 +92,6 @@ async function getBookingDetail(req, res, next) {
   }
 }
 
-/** POST /coordinator/bookings/:id/assign */
 async function postAssign(req, res, next) {
   try {
     const bookingId = parseBookingId(req.params.id);
@@ -157,7 +136,6 @@ async function postAssign(req, res, next) {
   }
 }
 
-/** POST /coordinator/bookings/:id/completion -- F8: log how the assignment went. */
 async function postUpdateCompletion(req, res, next) {
   try {
     const bookingId = parseBookingId(req.params.id);

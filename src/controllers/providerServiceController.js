@@ -10,28 +10,6 @@ const {
   DAYS,
 } = require('../validation/providerServiceSchemas');
 
-/**
- * F3 — a provider creates and manages their service listings.
- *
- * Every route below is mounted behind requireRole('provider') and every one of them resolves
- * the provider record from `req.session.user.id` before it touches a listing. No route takes a
- * provider id from a URL, a form field or a header, so there is no parameter anywhere in this
- * slice that can be edited to reach another organisation's listings.
- *
- * A listing that belongs to somebody else is answered 404, not 403 — the same choice, for the
- * same reason, as the booking detail page. "Forbidden" would confirm that service 7 exists and
- * belongs to a competitor, which is not something a provider is entitled to learn by typing
- * numbers into the address bar.
- */
-
-/**
- * Resolve the signed-in user's provider record.
- *
- * A provider user with no providers row cannot happen through registration — the two inserts
- * share a transaction (userRepository.insertProvider) — but if it ever did, every page in this
- * slice would fail on a null dereference somewhere less obvious. Answering here, once, keeps
- * that from being eight separate crashes.
- */
 async function requireProvider(req, next) {
   const provider = await providerListingService.findProvider(req.session.user.id);
 
@@ -45,7 +23,6 @@ async function requireProvider(req, next) {
   return provider;
 }
 
-/** Empty values for the create form, and for re-rendering one that failed validation. */
 function blankListing() {
   return {
     title: '',
@@ -58,7 +35,6 @@ function blankListing() {
   };
 }
 
-/** The values a submitted form carried, so a failed submission is never retyped from scratch. */
 function submittedValues(body) {
   return {
     title: body.title || '',
@@ -71,7 +47,6 @@ function submittedValues(body) {
   };
 }
 
-/** An existing listing in the shape the form renders. */
 function listingToValues(listing) {
   return {
     title: listing.title,
@@ -84,27 +59,23 @@ function listingToValues(listing) {
   };
 }
 
-/** Everything both renderings of the form need. */
 function formModel(extra) {
   return {
     categories: CATEGORY_LABELS,
     days: DAYS,
     errors: {},
-    // Kept separate from `errors` so a problem with the alt text does not make the listing
-    // form's own error summary claim the price or the title is wrong.
+
     imageErrors: {},
     pageScript: ['form-validate.js', 'listing-image.js'],
     ...extra,
   };
 }
 
-/** A listing id from the URL. Anything that is not a positive integer is simply not a listing. */
 function parseServiceId(raw) {
   const id = Number(raw);
   return Number.isInteger(id) && id > 0 ? id : null;
 }
 
-/** GET /provider/services — everything this organisation offers, published or withdrawn. */
 async function getListings(req, res, next) {
   try {
     const provider = await requireProvider(req, next);
@@ -123,7 +94,6 @@ async function getListings(req, res, next) {
   }
 }
 
-/** GET /provider/services/new — the create form. */
 async function getNewListing(req, res, next) {
   try {
     const provider = await requireProvider(req, next);
@@ -140,7 +110,6 @@ async function getNewListing(req, res, next) {
   }
 }
 
-/** POST /provider/services — publish a new listing. */
 async function postListing(req, res, next) {
   try {
     const provider = await requireProvider(req, next);
@@ -167,15 +136,12 @@ async function postListing(req, res, next) {
         : 'Listing saved. It becomes visible to requesters once your organisation is approved.',
     };
 
-    // Straight to the edit page rather than back to the list, because adding the image is the
-    // next thing the provider wants to do and it can only happen once the listing has an id.
     return res.redirect(`/provider/services/${serviceId}/edit`);
   } catch (error) {
     return next(error);
   }
 }
 
-/** GET /provider/services/:id/edit — edit one listing and manage its image. */
 async function getEditListing(req, res, next) {
   try {
     const provider = await requireProvider(req, next);
@@ -198,7 +164,6 @@ async function getEditListing(req, res, next) {
   }
 }
 
-/** POST /provider/services/:id — save an edit. */
 async function postEditListing(req, res, next) {
   try {
     const provider = await requireProvider(req, next);
@@ -237,7 +202,6 @@ async function postEditListing(req, res, next) {
   }
 }
 
-/** POST /provider/services/:id/visibility — withdraw a listing, or publish it again. */
 async function postVisibility(req, res, next) {
   try {
     const provider = await requireProvider(req, next);
@@ -246,8 +210,6 @@ async function postVisibility(req, res, next) {
     const serviceId = parseServiceId(req.params.id);
     if (!serviceId) return next();
 
-    // The button says which way it is going; anything else is treated as a withdrawal, which
-    // is the reversible direction and therefore the safe reading of a malformed request.
     const publish = req.body.action === 'publish';
 
     const { outcome } = await providerListingService.setVisibility(
@@ -272,7 +234,6 @@ async function postVisibility(req, res, next) {
   }
 }
 
-/** POST /provider/services/:id/delete — delete a listing nobody has booked. */
 async function postDeleteListing(req, res, next) {
   try {
     const provider = await requireProvider(req, next);
@@ -286,8 +247,7 @@ async function postDeleteListing(req, res, next) {
     if (result.outcome === 'not-found') return next();
 
     if (result.outcome === 'has-bookings') {
-      // Not an error page: the provider asked for something reasonable and the answer is a
-      // different action, so say which one and leave them where they were.
+
       req.session.flash = {
         type: 'error',
         message: `This listing cannot be deleted — ${result.bookingCount} booking`
@@ -304,13 +264,6 @@ async function postDeleteListing(req, res, next) {
   }
 }
 
-/**
- * POST /provider/services/:id/image/presign — mint a presigned PUT.
- *
- * The only JSON endpoint in the slice. It answers the upload script, which then sends the file
- * to S3 itself; nothing here reads a file. Errors are JSON too, because the caller is a
- * `fetch` that needs a message to show, not a rendered page.
- */
 async function postImagePresign(req, res, next) {
   try {
     const provider = await requireProvider(req, next);
@@ -343,13 +296,6 @@ async function postImagePresign(req, res, next) {
   }
 }
 
-/**
- * POST /provider/services/:id/image — record an upload that has landed.
- *
- * A normal form post rather than JSON, so the page reloads and shows the new image with the
- * flash message every other action in the slice uses. The script fills the hidden key field
- * and submits this form; there is one code path, not two.
- */
 async function postImageConfirm(req, res, next) {
   try {
     const provider = await requireProvider(req, next);
@@ -383,8 +329,7 @@ async function postImageConfirm(req, res, next) {
     if (result.outcome === 'not-found') return next();
 
     if (result.outcome === 'invalid-key') {
-      // The key did not name this provider's own listing. Either the upload was tampered with
-      // or the form was replayed against another listing; neither is worth explaining.
+
       req.session.flash = {
         type: 'error',
         message: 'That image could not be attached. Please choose the file again.',
@@ -399,7 +344,6 @@ async function postImageConfirm(req, res, next) {
   }
 }
 
-/** POST /provider/services/:id/image/remove — take the image off and delete the object. */
 async function postImageRemove(req, res, next) {
   try {
     const provider = await requireProvider(req, next);

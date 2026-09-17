@@ -1,18 +1,5 @@
 #!/usr/bin/env bash
-# Provisions MS-1's own AWS resources: the SNS topic, the SQS queue and its dead-letter queue,
-# the subscription between them, and the queue policy that lets SNS actually deliver to it (SQS
-# refuses messages from SNS by default -- a queue with no resource policy silently drops every
-# notification and nothing anywhere reports an error, which is the kind of failure that is much
-# cheaper to prevent than to debug).
-#
-# Idempotent throughout -- safe to re-run after a lab reset, matching db/dynamodb/create-tables.sh
-# and scripts/provision.sh.
-#
-# Usage: AWS_REGION=us-east-1 bash scripts/provision-ms1.sh
-#
-# Prints the topic ARN at the end -- set it as SNS_BOOKING_EVENTS_TOPIC_ARN on the Elastic
-# Beanstalk environment (eb setenv or the console; see README.md#deploying for why DB_PASSWORD
-# and, by the same reasoning, any other real value never goes inline in a command).
+
 set -euo pipefail
 
 region="${AWS_REGION:-us-east-1}"
@@ -22,8 +9,7 @@ dlq_name="${SQS_DLQ_NAME:-bridgeability-notifications-dlq}"
 max_receive_count="${SQS_MAX_RECEIVE_COUNT:-5}"
 
 echo "== SNS topic =="
-# create-topic is itself idempotent: calling it again on an existing topic name just returns the
-# same ARN rather than erroring, unlike SQS's create-queue below.
+
 topic_arn="$(aws sns create-topic --name "$topic_name" --region "$region" --query TopicArn --output text)"
 echo "sns: $topic_arn"
 
@@ -55,16 +41,10 @@ fi
 queue_arn="$(aws sqs get-queue-attributes --queue-url "$queue_url" --attribute-names QueueArn --region "$region" --query 'Attributes.QueueArn' --output text)"
 echo "sqs: $queue_arn"
 
-# RedrivePolicy's own value must itself be a JSON string (not a nested object) -- this is an SQS
-# quirk, confirmed against the API, not assumed.
 redrive_policy_json="$(node -e "
   console.log(JSON.stringify({ deadLetterTargetArn: '$dlq_arn', maxReceiveCount: $max_receive_count }));
 ")"
 
-# The queue's resource policy: only this specific SNS topic may SendMessage to it. Scoped by
-# SourceArn condition, not "any SNS topic in the account" -- the narrowest grant that still
-# works, matching the project's own least-privilege framing (CLAUDE.md, "Cognito" section, on
-# why the team can defend every permission on camera).
 access_policy_json="$(node -e "
   console.log(JSON.stringify({
     Version: '2012-10-17',

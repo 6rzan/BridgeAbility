@@ -17,8 +17,6 @@ const {
 } = require('../../src/controllers/adminProviderController');
 const { buildPlaceholderPdf } = require('../../db/seed-media');
 
-// --- adminProviderListSchema -----------------------------------------------------
-
 test('each of the three registration statuses is accepted as a filter', () => {
   for (const status of PROVIDER_STATUSES) {
     const parsed = adminProviderListSchema.safeParse({ status });
@@ -38,19 +36,11 @@ test('a blank filter is treated as absent, not as a value to match', () => {
   assert.equal(parsed.data.status, null);
 });
 
-// --- PROVIDER_STATUS_LABELS completeness ------------------------------------------
-//
-// Every status the schema accepts must have something to show for it -- the same class of bug
-// bookingSchemas.js's STATUS_LABELS/STATUS_EXPLANATIONS pair is already kept in lock-step to
-// avoid.
-
 test('every provider status has a label', () => {
   for (const status of PROVIDER_STATUSES) {
     assert.ok(PROVIDER_STATUS_LABELS[status], `missing a label for "${status}"`);
   }
 });
-
-// --- decorate ----------------------------------------------------------------------
 
 test('only a pending registration can be decided', () => {
   const base = { provider_id: 1, status: 'pending', created_at: new Date('2026-07-01T00:00:00Z') };
@@ -82,8 +72,6 @@ test('a reviewed registration formats the review date on the Malaysian clock', (
   assert.match(decorated.reviewedLabel, /14:45/);
 });
 
-// --- parseProviderId / buildQueryString -------------------------------------------
-
 test('a positive integer string is a valid provider id', () => {
   assert.equal(parseProviderId('4'), 4);
 });
@@ -99,12 +87,6 @@ test('the query string carries only the filters actually in force', () => {
   assert.equal(buildQueryString('pending'), '?status=pending');
   assert.equal(buildQueryString('pending', { page: 2 }), '?status=pending&page=2');
 });
-
-// --- buildPlaceholderPdf -------------------------------------------------------------
-//
-// The xref table's byte offsets are computed while the file is assembled, which is exactly the
-// kind of arithmetic that silently drifts if a line above it changes. This checks the offsets
-// actually land on "N 0 obj", not just that the function returns something PDF-shaped.
 
 test('the seeded verification document is a structurally valid PDF', () => {
   const pdf = buildPlaceholderPdf(['Placeholder verification document', 'Example Org']);

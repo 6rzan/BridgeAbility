@@ -1,12 +1,5 @@
 #!/usr/bin/env bash
-# Packages and deploys MS-3's Lambda (services/timeline/) and provisions the API Gateway REST
-# API in front of it: GET /timeline/{bookingId} -> Lambda proxy integration -> a deployed stage.
-#
-# Idempotent: creates everything on first run, updates the Lambda's code/config and leaves
-# already-provisioned API Gateway resources alone on every run after that -- matching
-# scripts/deploy-reports-lambda.sh and the rest of this project's provisioning scripts.
-#
-# Usage: AWS_REGION=us-east-1 bash scripts/deploy-timeline-lambda.sh
+
 set -euo pipefail
 
 region="${AWS_REGION:-us-east-1}"
@@ -18,7 +11,6 @@ api_name="${API_GATEWAY_NAME:-bridgeability-timeline-api}"
 stage_name="${API_GATEWAY_STAGE:-prod}"
 timeline_table="${DDB_TIMELINE_TABLE:-BridgeAbility_BookingTimeline}"
 
-# Same MSYS-vs-native-path issue scripts/deploy-notification-lambda.sh documents and fixes.
 native_path() {
   if command -v cygpath >/dev/null 2>&1; then
     cygpath -w "$1"
@@ -111,10 +103,7 @@ ensure_resource() {
 }
 
 timeline_resource_id="$(ensure_resource "$root_resource_id" "timeline")"
-# {bookingId} (curly braces, literal) declares a path parameter -- API Gateway populates
-# event.pathParameters.bookingId from whatever segment the caller puts there, and passes it
-# straight through to the Lambda automatically under AWS_PROXY integration, no separate request
-# parameter mapping needed (that mapping is only required for a non-proxy integration).
+
 booking_resource_id="$(ensure_resource "$timeline_resource_id" "{bookingId}")"
 echo "apigateway: /timeline/{bookingId} -> resource $booking_resource_id"
 

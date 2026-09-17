@@ -1,13 +1,5 @@
 #!/usr/bin/env bash
-# Packages and deploys MS-2's Lambda (services/reports/) and provisions the API Gateway REST
-# API in front of it: GET /reports/recently-completed -> Lambda proxy integration -> a deployed
-# stage.
-#
-# Idempotent: creates everything on first run, updates the Lambda's code/config and leaves
-# already-provisioned API Gateway resources alone on every run after that -- matching the rest
-# of this project's provisioning scripts.
-#
-# Usage: AWS_REGION=us-east-1 bash scripts/deploy-reports-lambda.sh
+
 set -euo pipefail
 
 region="${AWS_REGION:-us-east-1}"
@@ -19,8 +11,6 @@ api_name="${API_GATEWAY_NAME:-bridgeability-reports-api}"
 stage_name="${API_GATEWAY_STAGE:-prod}"
 timeline_table="${DDB_TIMELINE_TABLE:-BridgeAbility_BookingTimeline}"
 
-# Same MSYS-vs-native-path issue scripts/deploy-notification-lambda.sh documents and fixes --
-# see that file's comment for the full explanation.
 native_path() {
   if command -v cygpath >/dev/null 2>&1; then
     cygpath -w "$1"
@@ -98,9 +88,6 @@ fi
 root_resource_id="$(aws apigateway get-resources --rest-api-id "$api_id" --region "$region" \
   --query "items[?path=='/'].id | [0]" --output text)"
 
-# One helper for "create this path segment under this parent if it is not already there" --
-# used twice below (reports, then recently-completed under it), since API Gateway resources
-# nest one path segment at a time, not a whole path in one call.
 ensure_resource() {
   local parent_id="$1"
   local path_part="$2"
@@ -130,9 +117,6 @@ else
   echo "apigateway: GET method already exists"
 fi
 
-# AWS_PROXY passes the whole request through and expects the Lambda's own {statusCode, headers,
-# body} response shape back -- exactly what services/reports/index.js already returns, so no
-# API Gateway-side request/response mapping template is needed.
 integration_uri="arn:aws:apigateway:$region:lambda:path/2015-03-31/functions/$function_arn/invocations"
 aws apigateway put-integration --rest-api-id "$api_id" --resource-id "$endpoint_resource_id" \
   --http-method GET --type AWS_PROXY --integration-http-method POST \

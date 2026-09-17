@@ -1,12 +1,5 @@
 'use strict';
 
-/**
- * Display preferences: a high-contrast toggle and a text-size control.
- *
- * The page is fully readable and operable before this file runs. The toolbar starts hidden
- * and is only revealed here, so a browser with JavaScript disabled is never shown controls
- * that would not work. Both preferences persist per browser via localStorage.
- */
 (function () {
   var STORAGE_CONTRAST = 'bridgeability.contrast';
   var STORAGE_SCALE = 'bridgeability.textScale';

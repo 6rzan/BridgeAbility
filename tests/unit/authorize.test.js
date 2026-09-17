@@ -22,7 +22,6 @@ function makeResponse() {
   };
 }
 
-/** Returns { passed, error, redirectedTo } for one middleware run. */
 function run(middleware, req, res = makeResponse()) {
   let passed = false;
   let error = null;
@@ -61,8 +60,6 @@ test('requireAuth answers 401 to an anonymous write rather than redirecting it',
   assert.equal(result.redirectedTo, null);
 });
 
-// The point of the whole middleware: a signed-in user of the wrong role is stopped on the
-// server. Whether the navigation shows them a link is irrelevant.
 test('requireRole refuses a signed-in user whose role is not allowed', () => {
   const result = run(requireRole('coordinator'), makeRequest({ user: requester }));
 
@@ -78,8 +75,6 @@ test('requireRole admits a user holding one of several allowed roles', () => {
   assert.equal(run(guard, makeRequest({ user: requester })).passed, false);
 });
 
-// 401 and 403 must stay distinct: "we do not know who you are" is a different fix for the
-// user than "we know, and you may not".
 test('requireRole answers 401, not 403, when nobody is signed in', () => {
   const result = run(requireRole('admin'), makeRequest());
   assert.equal(result.error.statusCode, 401);

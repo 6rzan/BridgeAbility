@@ -1,11 +1,5 @@
 #!/usr/bin/env bash
-# Packages and deploys MS-1's Lambda (services/notification/) and wires it to the SQS queue
-# scripts/provision-ms1.sh created, with partial-batch-failure reporting on.
-#
-# Idempotent: creates the function on first run, updates its code and config on every run after
-# that, matching the rest of this project's provisioning scripts.
-#
-# Usage: AWS_REGION=us-east-1 bash scripts/deploy-notification-lambda.sh
+
 set -euo pipefail
 
 region="${AWS_REGION:-us-east-1}"
@@ -16,12 +10,6 @@ function_name="${LAMBDA_FUNCTION_NAME:-bridgeability-notification}"
 queue_name="${SQS_QUEUE_NAME:-bridgeability-notifications}"
 notifications_table="${DDB_NOTIFICATIONS_TABLE:-BridgeAbility_Notifications}"
 
-# `cd ... && pwd` on Git Bash produces an MSYS-style path (/c/Users/...) that bash itself
-# resolves fine but that native Windows binaries -- the AWS CLI's fileb:// loader, PowerShell --
-# cannot open (the exact bug db/dynamodb/create-tables.sh hit with Node's require(), a different
-# native binary, same root cause: see that file's own comment). cygpath converts to a real
-# Windows path when it exists (Git Bash ships it); elsewhere (Linux/macOS) no conversion is
-# needed at all, so the path passes through unchanged.
 native_path() {
   if command -v cygpath >/dev/null 2>&1; then
     cygpath -w "$1"
@@ -42,10 +30,6 @@ mkdir -p "$build_dir"
 cp -r "$service_dir/." "$build_dir/"
 rm -rf "$build_dir/README.md"
 
-# No `zip` binary in this environment's Git Bash -- Windows ships Compress-Archive instead.
-# Linux/macOS get the standard `zip`. Whichever is available, the result is the same: a zip
-# whose entries are index.js, package.json and node_modules/ at the archive root, not nested
-# inside a notification-lambda/ folder (Lambda requires the handler file at the zip's root).
 if command -v zip >/dev/null 2>&1; then
   (cd "$build_dir" && zip -qr "$zip_path" .)
 elif command -v powershell.exe >/dev/null 2>&1; then
@@ -58,7 +42,6 @@ else
 fi
 echo "packaged: $zip_path ($(du -h "$zip_path" | cut -f1))"
 
-# The AWS CLI's fileb:// loader has the exact same native-path requirement as PowerShell above.
 zip_path_for_cli="$(native_path "$zip_path")"
 
 echo
