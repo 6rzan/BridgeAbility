@@ -16,7 +16,7 @@ Group 21, so confirm with the lecturer whether to use `G21_` or the literal `G1_
 
 # Part A — audit of Task 1
 
-Audited against `CLAUDE.md` (the conventions the team locked for Task 1) and the code as it
+Audited against `CONVENTIONS.md` (the conventions the team locked for Task 1) and the code as it
 stands on `main`. **The Task 1 brief PDF is not in this repo or in Downloads** — someone should
 re-read it against this list before Friday in case it asks for anything not captured here.
 
@@ -65,12 +65,12 @@ it so the second and third re-provision cost minutes, not hours.
 
 ### A2. Git attribution does not read like the workload matrix
 
-`CLAUDE.md` calls this "load-bearing, not cosmetic", and it is currently broken in exactly the
+`CONVENTIONS.md` calls this "load-bearing, not cosmetic", and it is currently broken in exactly the
 way that section warns about:
 
 ```
 14  Taha Fahd <tahafahd40@gmail.com>
- 8  Taha Thabit <tahafahd40@gmail.com>          <- the alias CLAUDE.md says to avoid
+ 8  Taha Thabit <tahafahd40@gmail.com>          <- the alias CONVENTIONS.md says to avoid
  3  Abubaker Elsiddig <tagabobakr@gmail.com>
  3  Noor <noorkhalil6867@gmail.com>
  2  Lama Aldhahyani <Aldhahyanilama@gmail.com>
@@ -130,7 +130,7 @@ that are genuinely the same for everyone.
   no files).
 - The live URL is dead (A1).
 
-`docs/references.md` is the one with teeth: `CLAUDE.md` requires it under the module's
+`docs/references.md` is the one with teeth: `CONVENTIONS.md` requires it under the module's
 plagiarism rule, and the inline citations it is supposed to index already exist in the code
 (`sessionStore.js` cites the express-session store contract and the DynamoDB TTL docs,
 `csrf.js` cites the OWASP CSRF cheat sheet, `authSchemas.js` cites NIST SP 800-63B). The file
@@ -353,7 +353,7 @@ pushed and re-creatable.
 | 2. Design & implementation | Diagram 1 and 2 (Day 3), the per-service "why it is better" paragraphs in B1, code screenshots of each Lambda handler and the API Gateway / SNS / SQS / S3-event console configuration |
 | 3. Results & discussion | The two metric captures (Day 1 and Day 4) and the X-Ray service maps, with the honest trade-off argument from B3 |
 | 4. Reflections | One per member, written individually, naming their own microservice and a real difficulty |
-| 5. Workload matrix | Task 1 F1–F8 owners from `CLAUDE.md`, plus Task 2: Abubaker MS-1, Lama MS-2, Noor MS-3, Taha MS-4 + diagrams |
+| 5. Workload matrix | Task 1 F1–F8 owners from `CONVENTIONS.md`, plus Task 2: Abubaker MS-1, Lama MS-2, Noor MS-3, Taha MS-4 + diagrams |
 | 6. References | APA, seeded from `docs/references.md` and the four citations already inline in the code |
 
 ## B6. Risks

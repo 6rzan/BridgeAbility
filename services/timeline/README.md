@@ -29,7 +29,7 @@ paint" — the browser calling API Gateway directly. That is not what is deploye
 owns or is entitled to see that specific booking *before* they ever call the timeline read. This
 Lambda has no such check — it will return whatever `bookingId` it is asked for. A browser
 calling it directly would let anyone read any booking's history by guessing an id, which is
-exactly what `CLAUDE.md`'s "a user must not be able to reach another user's resource by calling
+exactly what `CONVENTIONS.md`'s "a user must not be able to reach another user's resource by calling
 the route" rule forbids. Keeping the call inside the three services above — which have already
 done the ownership check — keeps that guarantee intact. API Gateway and Lambda are still
 genuinely in the request path; they are just not exposed to the browser.

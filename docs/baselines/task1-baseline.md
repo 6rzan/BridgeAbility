@@ -74,7 +74,7 @@ the bottleneck, and lets that read path scale independently of it.
   confirmed by anyone in this AWS Academy account, though -- both the CLI (`AccessDeniedException`
   on `xray:GetTraceSummaries`) and the console ("This IAM user does not have permission to view
   the service map for this account", screenshotted directly) refuse the same `voclabs` role. This
-  is the same category of constraint as "the lab blocks creating custom IAM roles" (`CLAUDE.md`)
+  is the same category of constraint as "the lab blocks creating custom IAM roles" (`CONVENTIONS.md`)
   -- a permanent property of the Learner Lab account, not a step either of us missed. Report the
   code-level implementation as evidence for Section 2 (Design & Implementation); do not claim a
   verified service map for Section 3, since it cannot be produced under this account.

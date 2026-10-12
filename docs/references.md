@@ -47,7 +47,7 @@ https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Preven
 > Used in: [`src/middleware/csrf.js`](../src/middleware/csrf.js) — the hand-rolled
 > double-submit CSRF token, implementing the sheet's "Naive Double-Submit Cookie" pattern
 > hardened with an `HttpOnly` cookie and a server-rendered token, in place of the deprecated
-> `csurf` package (see `CLAUDE.md`, "Deliberately rejected").
+> `csurf` package (see `CONVENTIONS.md`, "Deliberately rejected").
 
 ---
 

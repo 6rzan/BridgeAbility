@@ -149,7 +149,7 @@ AWS_REGION=us-east-1 bash db/dynamodb/create-tables.sh
 #
 # --instance_profile and --service-role are not optional: without them `eb create` tries to
 # auto-create `aws-elasticbeanstalk-service-role` and fails with "No permissions to perform
-# iam:CreateRole" -- Academy blocks creating IAM roles (CLAUDE.md, "Deliberately rejected").
+# iam:CreateRole" -- Academy blocks creating IAM roles (CONVENTIONS.md, "Deliberately rejected").
 # LabInstanceProfile / LabRole are the lab-provided ones every member's sandbox already has.
 eb create bridgeability-env \
   --single \

@@ -72,6 +72,6 @@ better — not a component added because the brief asked for one:
 
 The plan considered a fourth microservice (S3-event-triggered image processing on listing
 uploads) but cut it: MS-1 through MS-3 already satisfy the brief's floor (API Gateway, Lambda,
-and at least one of S3/SNS/SQS — this deployment has all four), and CLAUDE.md's own rule that
+and at least one of S3/SNS/SQS — this deployment has all four), and CONVENTIONS.md's own rule that
 the rubric rewards completing what was proposed, not adding to it, argued against building a
 fourth service just to have one more to show.
