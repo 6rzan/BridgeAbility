@@ -6,8 +6,41 @@ caregivers and mobility assistance. A requester finds a verified listing, sends 
 request, and follows it through to completion; providers, administrators and coordinators
 each act on their own part of that flow.
 
-Built for **CT071-3-3-DDAC**, Asia Pacific University — Group 21, Topic 4. This repository is
-**Task 1**: Frontend & Backend Development plus the Cloud Database Service.
+Built for **CT071-3-3-DDAC** (Designing and Developing Applications on the Cloud), Asia Pacific
+University — Group 21, Topic 4. The repository holds both parts of the module:
+
+- **Task 1** — the frontend and backend, plus the cloud database layer (RDS, DynamoDB, S3),
+  deployed on Elastic Beanstalk.
+- **Task 2** — serverless services (API Gateway, Lambda, SNS, SQS) added to the same system,
+  with CloudWatch and X-Ray monitoring and a measured before/after comparison.
+
+## What this project demonstrates
+
+We built this to learn cloud deployment on AWS by doing it end to end, on a real account, with
+no local database and no mocked AWS clients. Hands-on work in this repo covers:
+
+- **Deploying and operating a web app on AWS.** Elastic Beanstalk with `.ebextensions` for
+  configuration, schema migrations that run on the instance inside the VPC, and a repeatable
+  re-provisioning path (`scripts/provision.sh`, `db/dynamodb/create-tables.sh`) because the
+  AWS Academy lab wipes its network on every reset.
+- **Choosing a data store per access pattern.** RDS MySQL for transactional state, DynamoDB
+  for the append-only booking history and the session store (with TTL), S3 for images served
+  only through presigned URLs.
+- **Network and identity security.** A private RDS reachable only from the app's security
+  group, S3 Block Public Access with encryption and versioning, credentials from the EC2
+  instance profile with no access keys in the repo, and authorisation checked server-side on
+  every route.
+- **Moving work to serverless.** Three microservices: booking notifications over
+  SNS → SQS → Lambda with a dead-letter queue, plus the admin reports and booking timeline
+  behind API Gateway + Lambda. The main app falls back to a direct read if a gateway call
+  fails, so users never see the outage.
+- **Monitoring and load testing.** X-Ray tracing on the Express app, a CloudWatch dashboard
+  comparing Task 1 and Task 2, and `scripts/loadtest.js` runs recorded in `docs/baselines/`,
+  open findings included.
+
+It also had to work within real limits: no IAM role creation, a burstable instance that runs
+out of CPU credits under load, and lab sessions that expire mid-deploy. The notes in
+`docs/baselines/` and `docs/task2-plan.md` record how each one was handled.
 
 | | |
 |---|---|
@@ -49,6 +82,11 @@ probe are cross-cutting and jointly owned.
 | Objects | Amazon S3 | Service images; Block Public Access on, versioned, encrypted; reached only through short-lived presigned URLs |
 | AWS access | AWS SDK v3 | Credentials resolve from the EC2 **instance profile** (`LabInstanceProfile` → `LabRole`); no access key exists in this repository |
 | Views | EJS, server-rendered | Progressively enhanced with vanilla `fetch`; every page works with JavaScript disabled |
+| Notifications (Task 2) | Amazon SNS + SQS + AWS Lambda | Booking and provider decisions publish to SNS; an SQS queue feeds the notification Lambda, with a dead-letter queue for failures (`services/notification`) |
+| Reports, timeline (Task 2) | Amazon API Gateway + AWS Lambda | Admin reports and a booking's history served by Lambda behind API Gateway, with a direct-read fallback in the app (`services/reports`, `services/timeline`) |
+| Monitoring (Task 2) | AWS X-Ray + Amazon CloudWatch | Traces across Express, MySQL, DynamoDB and S3; a dashboard comparing the Task 1 and Task 2 builds |
+
+Architecture diagrams for both tasks are in `docs/diagrams/`.
 
 **Why two databases.** A booking's current state is one row in MySQL — transactional, joined
 to services and providers, constrained by foreign keys. Its history is a different shape: an
@@ -225,9 +263,10 @@ src/
   data/dynamo/        DynamoDB access — session store, booking timeline
   views/              EJS templates and partials
   public/             CSS and progressive-enhancement JavaScript
+services/             Task 2 Lambda microservices (notification, reports, timeline)
 db/                   schema.sql, seed.sql, patches, migration runner
 db/dynamodb/          table definitions and the create-tables script
-scripts/              secret scan, contrast check, submission packaging
+scripts/              provisioning, load test, secret scan, contrast check, packaging
 tests/unit/           unit suite
 tests/integration/    suite that runs against the deployed URL (BASE_URL)
 docs/                 CRUD matrix, references, working notes
