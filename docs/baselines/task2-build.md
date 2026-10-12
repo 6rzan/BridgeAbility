@@ -96,6 +96,49 @@ instance that also needs to make outbound TLS calls under load; either monitor
 `CPUCreditBalance` and alert well above zero, or move to a non-burstable instance class if the
 serverless integrations become load-bearing rather than best-effort.**
 
+## A second capture (17 September) shows a different, unexplained pattern
+
+Two further load tests were run against this same environment on 17 September, after an
+unrelated instance replacement (a temporary EC2 key pair added for an SSH diagnostic attempt,
+reverted afterward at the security-group level): `BOOKING_ID=7 node scripts/loadtest.js 20 10`
+(17:07:18–17:09:07 UTC, 731 requests each to `/admin/reports` and `/bookings/7`) and the same
+command with `60 15` (17:13:02–17:18:09 UTC, 3,358 requests each). Both ran clean — 0 errors, 0
+timeouts, 0 non-2xx, 256–284ms average latency throughout, noticeably better than the 15
+September figures.
+
+This time, `CPUCreditBalance` was confirmed healthy throughout (15.8–17.9, not the 0.34 from the
+first capture — pulled via the same `get-metric-data` call), which rules out the CPU-credit
+explanation for what follows: **`bridgeability-reports` and `bridgeability-timeline` show zero
+invocations across both entire runs**, confirmed directly against CloudWatch Logs
+(`aws logs filter-log-events`, not inferred from the dashboard). This was checked as thoroughly
+as time allowed before accepting it as unexplained, rather than assumed:
+
+- `curl` from the EC2 instance itself (via SSM, not this machine) to both API Gateway URLs
+  succeeds instantly every time, including 8 concurrent requests — each one confirmed via
+  CloudWatch Logs to genuinely invoke Lambda.
+- The identical `fetch()` call, run as a bare Node script on the same instance outside Express,
+  also succeeds (200, correct body).
+- The deployed `reportsGateway.js` was confirmed byte-for-byte identical to the repository, and
+  `REPORTS_API_URL`/`TIMELINE_API_URL` were confirmed present in the actual running process's
+  environment (`/proc/<pid>/environ`), not just the EB configuration.
+- API Gateway response caching was confirmed disabled on both stages.
+- No error was logged either: `reportsGateway.js`/`timelineGateway.js`'s own `console.error`,
+  which fires on any caught failure, produced zero new lines across either run.
+
+In short, the gateway call neither succeeds (no Lambda invocation) nor visibly fails (no logged
+error) when made from inside a real request — the identical call from a bare script on the same
+instance works. The next diagnostic step (temporary debug logging added directly to the live
+instance) was deliberately not pursued: it required a production write this close to the
+deadline for a question that does not change the system's correctness. **This is reported as an
+open, unexplained finding, not a resolved one** — do not cite a root cause for it in the video or
+the report beyond what is written here.
+
+It does not weaken Section 3's central point. `reportsGateway.js`/`timelineGateway.js`'s fallback
+logic is unchanged and confirmed correct by direct code review; every one of the 4,089 requests
+in these two runs still answered correctly and quickly. A 100% fallback rate with zero
+user-visible failures is, if anything, a *stronger* demonstration of the resilience property
+Task 2's design is meant to show than the partial fallback measured on 15 September.
+
 ## CloudWatch metrics during the load test
 
 | Metric | Task 1 baseline | Task 2 build |
